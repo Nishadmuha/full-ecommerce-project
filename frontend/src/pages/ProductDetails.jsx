@@ -156,7 +156,7 @@ export default function ProductDetails() {
       }
     };
 
-    checkWishlistStatus();
+      checkWishlistStatus();
   }, [currentProductId]);
 
   // Get images - show main product images first, color images only if color was clicked
@@ -697,15 +697,15 @@ export default function ProductDetails() {
             onClick={(e) => e.stopPropagation()}
           >
             {thumbnails[selectedImageIndex] && (
-              <img
-                src={thumbnails[selectedImageIndex]}
+            <img
+              src={thumbnails[selectedImageIndex]}
                 alt={`${product?.title || 'Product'} - ${selectedColor?.name || ''} - View ${selectedImageIndex + 1}`}
-                className="max-w-full max-h-full object-contain"
+              className="max-w-full max-h-full object-contain"
                 onError={(e) => {
                   console.error('Image failed to load:', thumbnails[selectedImageIndex]);
                   e.target.style.display = 'none';
                 }}
-              />
+            />
             )}
           </div>
 

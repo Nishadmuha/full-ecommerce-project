@@ -56,9 +56,9 @@ const mergeData = payload => {
   
   return {
     banners: validBanner ? [validBanner] : [FALLBACK_BANNER],
-    collections: payload?.collections || [],
-    bestsellers: payload?.bestsellers || [],
-    newArrivals: payload?.newArrivals || [],
+  collections: payload?.collections || [],
+  bestsellers: payload?.bestsellers || [],
+  newArrivals: payload?.newArrivals || [],
   };
 };
 
@@ -75,35 +75,35 @@ export default function Home() {
       const images = banner?.images && Array.isArray(banner.images) && banner.images.length === 3
         ? banner.images 
         : [];
-      
+
       if (images.length === 3) {
         // Clean image URLs (remove any whitespace/tabs)
         const cleanImages = images.map(img => typeof img === 'string' ? img.trim() : img);
         
         // Preload first image immediately with high priority
         if (cleanImages[0]) {
-          const firstLink = document.createElement('link');
-          firstLink.rel = 'preload';
-          firstLink.as = 'image';
+        const firstLink = document.createElement('link');
+        firstLink.rel = 'preload';
+        firstLink.as = 'image';
           firstLink.href = cleanImages[0];
-          firstLink.fetchPriority = 'high';
-          document.head.appendChild(firstLink);
+        firstLink.fetchPriority = 'high';
+        document.head.appendChild(firstLink);
 
-          // Start loading first image immediately
-          const firstImg = new Image();
-          firstImg.fetchPriority = 'high';
-          firstImg.loading = 'eager';
+        // Start loading first image immediately
+        const firstImg = new Image();
+        firstImg.fetchPriority = 'high';
+        firstImg.loading = 'eager';
           firstImg.src = cleanImages[0];
 
-          // Preload remaining images in background
+        // Preload remaining images in background
           cleanImages.slice(1).forEach((imageUrl) => {
             if (imageUrl) {
-              const img = new Image();
-              img.fetchPriority = 'low';
-              img.loading = 'lazy';
-              img.src = imageUrl;
+          const img = new Image();
+          img.fetchPriority = 'low';
+          img.loading = 'lazy';
+          img.src = imageUrl;
             }
-          });
+        });
         }
       }
     };

@@ -208,8 +208,8 @@ export default function Account() {
                   onClick={() => setEditing(true)}
                   className="rounded-full border border-[#ff0000] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#ff0000] hover:bg-[#ffe4e4] transition-colors"
                 >
-                  Change Photo
-                </button>
+                Change Photo
+              </button>
               )}
             </div>
 
