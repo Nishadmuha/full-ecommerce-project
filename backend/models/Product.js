@@ -17,7 +17,10 @@ const ProductSchema = new mongoose.Schema(
       images: [String] // Array of 3 images per color
     }]
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    suppressReservedKeysWarning: true // Suppress warning for 'isNew' reserved pathname
+  }
 );
 
 module.exports = mongoose.model('Product', ProductSchema);

@@ -274,7 +274,7 @@ export default function Hero({ banner }) {
               willChange: 'opacity',
             }}
             loading={index === 0 ? 'eager' : 'lazy'}
-            fetchPriority={index === 0 ? 'high' : 'low'}
+            fetchpriority={index === 0 ? 'high' : 'low'}
             decoding="async"
             onLoad={() => {
               setImagesLoaded(prev => ({ ...prev, [index]: true }));
