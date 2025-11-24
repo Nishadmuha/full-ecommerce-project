@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MERN E-Commerce Backend API</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        .status {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .status-online {
+            background: #28a745;
+            color: white;
+        }
+        .content {
+            padding: 30px;
+        }
+        .endpoint {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .endpoint h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .endpoint code {
+            background: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            display: block;
+            margin: 10px 0;
+        }
+        .response {
+            background: #2d3748;
+            color: #68d391;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .loading {
+            color: #667eea;
+            font-style: italic;
+        }
+        .error {
+            color: #e53e3e;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-card h3 {
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+        .stat-card p {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 MERN E-Commerce Backend API</h1>
+            <p>Backend Server Status & API Endpoints</p>
+        </div>
+        
+        <div class="status">
+            <div class="status-item">
+                <div>
+                    <strong>Server Status</strong>
+                    <p style="margin-top: 5px; color: #666;">Running on http://localhost:5000</p>
+                </div>
+                <span class="status-badge status-online" id="serverStatus">ONLINE</span>
+            </div>
+            <div class="status-item">
+                <div>
+                    <strong>Database</strong>
+                    <p style="margin-top: 5px; color: #666;">MongoDB Connection</p>
+                </div>
+                <span class="status-badge status-online" id="dbStatus">CONNECTED</span>
+            </div>
+        </div>
+
+        <div class="content">
+            <h2 style="margin-bottom: 20px; color: #333;">API Endpoints</h2>
+            
+            <div class="endpoint">
+                <h3>🏠 Home API</h3>
+                <code>GET /api/home</code>
+                <div id="homeResponse" class="response loading">Loading...</div>
+            </div>
+
+            <div class="endpoint">
+                <h3>📦 Products API</h3>
+                <code>GET /api/products</code>
+                <div id="productsResponse" class="response loading">Loading...</div>
+            </div>
+
+            <div class="endpoint">
+                <h3>🔐 Authentication</h3>
+                <code>POST /api/auth/register</code>
+                <code>POST /api/auth/login</code>
+                <p style="margin-top: 10px; color: #666;">Use Postman or frontend to test authentication endpoints</p>
+            </div>
+
+            <div class="endpoint">
+                <h3>🛒 Cart API (Auth Required)</h3>
+                <code>GET /api/cart</code>
+                <code>POST /api/cart</code>
+                <code>PUT /api/cart/:itemId</code>
+                <code>DELETE /api/cart/:itemId</code>
+            </div>
+
+            <div class="endpoint">
+                <h3>❤️ Wishlist API (Auth Required)</h3>
+                <code>GET /api/wishlist</code>
+                <code>POST /api/wishlist</code>
+                <code>DELETE /api/wishlist/:productId</code>
+            </div>
+
+            <div class="endpoint">
+                <h3>📋 Orders API (Auth Required)</h3>
+                <code>GET /api/orders</code>
+                <code>POST /api/orders</code>
+                <code>GET /api/orders/:id</code>
+            </div>
+
+            <div class="endpoint">
+                <h3>👤 User Profile API (Auth Required)</h3>
+                <code>GET /api/users/me</code>
+                <code>PUT /api/users/me</code>
+                <code>PUT /api/users/me/password</code>
+            </div>
+
+            <div class="endpoint">
+                <h3>⚙️ Admin API (Admin Required)</h3>
+                <code>GET /api/admin/dashboard</code>
+                <code>GET /api/admin/users</code>
+                <code>GET /api/admin/orders</code>
+                <code>POST /api/admin/products</code>
+                <code>POST /api/admin/banners</code>
+                <p style="margin-top: 10px; color: #666;">All admin endpoints require admin authentication</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fetch Home API
+        fetch('/api/home')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('homeResponse').innerHTML = 
+                    `Banners: ${data.banners?.length || 0}\n` +
+                    `Collections: ${data.collections?.length || 0}\n` +
+                    `Bestsellers: ${data.bestsellers?.length || 0}\n` +
+                    `New Arrivals: ${data.newArrivals?.length || 0}\n\n` +
+                    JSON.stringify(data, null, 2);
+            })
+            .catch(err => {
+                document.getElementById('homeResponse').innerHTML = 
+                    `<span class="error">Error: ${err.message}</span>`;
+            });
+
+        // Fetch Products API
+        fetch('/api/products')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('productsResponse').innerHTML = 
+                    `Total Products: ${data.length}\n\n` +
+                    JSON.stringify(data, null, 2);
+            })
+            .catch(err => {
+                document.getElementById('productsResponse').innerHTML = 
+                    `<span class="error">Error: ${err.message}</span>`;
+            });
+    </script>
+</body>
+</html>
+
+
+
+
+
