@@ -5,6 +5,7 @@ const router = express.Router();
 const {
     getProducts,
     getProduct,
+    getProductCategories,
     createProduct,
     updateProduct,
     deleteProduct
@@ -14,6 +15,7 @@ const {
 const { protect, admin } = require('../middleware/authMiddleware');
 
 // Public routes
+router.get('/categories', getProductCategories); // Get unique product categories for filters
 router.get('/', getProducts);
 router.get('/:id', getProduct);
 

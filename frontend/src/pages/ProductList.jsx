@@ -57,21 +57,26 @@ export default function ProductList() {
     return expandedProducts;
   };
 
-  // Fetch categories from API
+  // Fetch categories from products (not from collections)
+  // Collections are only for home page display, filters use product categories
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await api.get('/home');
-        if (res.data.collections && res.data.collections.length > 0) {
-          // Store full category objects with _id for unique keys
-          const categoryObjects = res.data.collections.map(cat => ({
-            _id: cat._id || cat.name, // Use _id if available, fallback to name
-            name: cat.name
+        // Get unique categories from products
+        const res = await api.get('/products/categories');
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+          // Convert array of category names to objects with _id
+          const categoryObjects = res.data.map(catName => ({
+            _id: catName, // Use category name as _id
+            name: catName
           }));
-          setCategories(categoryObjects.length > 0 ? categoryObjects : defaultCategories.map(name => ({ name, _id: name })));
+          setCategories(categoryObjects);
+        } else {
+          // Fallback to default categories if no product categories found
+          setCategories(defaultCategories.map(name => ({ name, _id: name })));
         }
       } catch (err) {
-        console.error('Error fetching categories:', err);
+        console.error('Error fetching product categories:', err);
         // Keep default categories on error
         setCategories(defaultCategories.map(name => ({ name, _id: name })));
       }
@@ -93,9 +98,12 @@ export default function ProductList() {
           params.append('search', searchQuery.trim());
         }
         
-        // Add category filter (use first selected category)
+        // Add category filter - support multiple categories
         if (selectedCategories.length > 0) {
-          params.append('category', selectedCategories[0]);
+          // Send all selected categories - backend will handle OR logic
+          selectedCategories.forEach(cat => {
+            params.append('category', cat);
+          });
         }
         
         // Add price range filter
@@ -152,13 +160,12 @@ export default function ProductList() {
 
   const handleCategoryToggle = (categoryName) => {
     setSelectedCategories(prev => {
-      // Toggle category - if already selected, remove it; otherwise replace with new selection
+      // Toggle category - if already selected, remove it; otherwise add it
       if (prev.includes(categoryName)) {
         return prev.filter(c => c !== categoryName);
       } else {
-        // For single category filter, replace the array with new selection
-        // Or keep multiple if you want multi-category support
-        return [categoryName];
+        // Allow multiple category selection
+        return [...prev, categoryName];
       }
     });
   };

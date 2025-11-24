@@ -1,5 +1,25 @@
 const Product = require('../models/Product');
 
+// GET UNIQUE PRODUCT CATEGORIES (for filter dropdown)
+exports.getProductCategories = async (req, res) => {
+  try {
+    // Get distinct categories from products
+    const categories = await Product.distinct('category');
+    
+    // Filter out null/undefined/empty values and sort
+    const validCategories = categories
+      .filter(cat => cat && typeof cat === 'string' && cat.trim().length > 0)
+      .map(cat => cat.trim())
+      .filter((cat, index, self) => self.indexOf(cat) === index) // Remove duplicates (case-sensitive)
+      .sort(); // Sort alphabetically
+    
+    res.json(validCategories);
+  } catch (error) {
+    console.error('Get product categories error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 // GET ALL PRODUCTS with Search, Filter, and Sort
 exports.getProducts = async (req, res) => {
   try {
@@ -24,9 +44,40 @@ exports.getProducts = async (req, res) => {
       ];
     }
 
-    // Filter by category
+    // Filter by category - support multiple categories
     if (category) {
-      query.category = { $regex: category, $options: 'i' };
+      // Handle both single category (string) and multiple categories (array)
+      const categories = Array.isArray(category) ? category : [category];
+      // Trim and filter empty categories
+      const validCategories = categories
+        .map(cat => String(cat).trim())
+        .filter(cat => cat.length > 0);
+      
+      if (validCategories.length > 0) {
+        if (validCategories.length === 1) {
+          // Single category: exact match (case-insensitive)
+          query.category = { $regex: `^${validCategories[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' };
+        } else {
+          // Multiple categories: use $or to match any of the selected categories
+          // This works with existing $or from search by using $and if both exist
+          const categoryConditions = validCategories.map(cat => ({
+            category: { $regex: `^${cat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' }
+          }));
+          
+          // If search also exists, we need to combine: (search) AND (category1 OR category2 OR ...)
+          if (query.$or) {
+            // Search exists: combine with $and
+            query.$and = [
+              { $or: query.$or }, // Search conditions
+              { $or: categoryConditions } // Category conditions
+            ];
+            delete query.$or; // Remove $or as it's now in $and
+          } else {
+            // No search: just use $or for categories
+            query.$or = categoryConditions;
+          }
+        }
+      }
     }
 
     // Filter by price range

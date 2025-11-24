@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { getAllCategories } from '../../api/adminApi';
 import api from '../../api/api';
 import { createProduct, updateProduct, deleteProduct, getProductsByCategory } from '../../api/adminApi';
 
@@ -58,10 +57,17 @@ export default function Products() {
 
   const fetchCategories = async () => {
     try {
-      const response = await getAllCategories();
-      setCategories(response.data);
+      // Fetch product categories (not collection categories) for the dropdown
+      const response = await api.get('/products/categories');
+      // Convert array of category names to objects with _id and name
+      const categoryObjects = (response.data || []).map(catName => ({
+        _id: catName,
+        name: catName
+      }));
+      setCategories(categoryObjects);
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error('Error fetching product categories:', error);
+      setCategories([]);
     }
   };
 
@@ -94,6 +100,8 @@ export default function Products() {
         alert('Product added successfully!');
       }
       resetForm();
+      // Refresh categories to include any new category that was added
+      fetchCategories();
       if (selectedCategory === 'all') {
         fetchProducts();
       } else {
@@ -258,19 +266,34 @@ export default function Products() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                  <select
-                    required
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map((cat) => (
-                      <option key={cat._id} value={cat.name}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      list="category-list"
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      onBlur={(e) => {
+                        // Trim whitespace on blur
+                        const trimmed = e.target.value.trim();
+                        if (trimmed !== e.target.value) {
+                          setFormData({ ...formData, category: trimmed });
+                        }
+                      }}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Select or type a new category"
+                    />
+                    <datalist id="category-list">
+                      {categories.map((cat) => (
+                        <option key={cat._id || cat.name} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </datalist>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Select from existing categories or type a new category name
+                  </p>
                 </div>
               </div>
               
