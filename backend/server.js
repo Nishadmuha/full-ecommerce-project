@@ -10,7 +10,7 @@ const app = express();
 connectDB();
 
 // Middlewares
-app.use(cors({ origin: process.env.CLIENT_URL || '*' }));
+app.use(cors({ origin: process.env.CLIENT_URL || 'https://full-ecommerce-project-kappa.vercel.app' }));
 app.use(express.json());
 app.use(express.static('public'));
 
