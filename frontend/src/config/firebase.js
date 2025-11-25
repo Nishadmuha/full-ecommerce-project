@@ -4,14 +4,15 @@ import { getAnalytics } from 'firebase/analytics';
 import { getAuth } from 'firebase/auth';
 
 // Your web app's Firebase configuration
+// Using environment variables for security
 const firebaseConfig = {
-  apiKey: "AIzaSyDDQdr0bFsBkobVovevggiJRv4qKVuWdME",
-  authDomain: "my-ecommerce-project-9c988.firebaseapp.com",
-  projectId: "my-ecommerce-project-9c988",
-  storageBucket: "my-ecommerce-project-9c988.firebasestorage.app",
-  messagingSenderId: "989147836362",
-  appId: "1:989147836362:web:6c70786575de6866a72933",
-  measurementId: "G-EDJM952R05"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
