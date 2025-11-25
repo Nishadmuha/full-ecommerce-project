@@ -55,38 +55,13 @@ body {
   animation-play-state: paused;
 }
 
-/* Center Google Login Button */
-.google-auth-wrapper {
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  width: 100% !important;
-}
-
-.google-auth-wrapper > div {
-  display: flex !important;
-  justify-content: center !important;
-  width: 100% !important;
-}
-
-.google-auth-wrapper div[id*="google-login"],
-.google-auth-wrapper div[data-testid*="google"],
-.google-auth-wrapper iframe[id*="google"],
-.google-auth-wrapper iframe[src*="accounts.google.com"],
-.google-auth-wrapper div[id^="gsi_"],
-.google-auth-wrapper div[role="button"][aria-labelledby*="google"] {
-  margin: 0 auto !important;
-  display: block !important;
-}
-
-/* Target all child elements of Google auth wrapper */
-.google-auth-wrapper * {
+/* Center Google Login Button - Backup styles for Tailwind approach */
+.google-button-wrapper iframe,
+.google-button-wrapper > div > iframe,
+.google-button-wrapper div[id*="google"],
+.google-button-wrapper div[data-testid*="google"],
+.google-button-wrapper div[id^="gsi_"] {
   margin-left: auto !important;
   margin-right: auto !important;
-}
-
-/* Ensure iframes are centered */
-.google-auth-wrapper iframe {
   display: block !important;
-  margin: 0 auto !important;
 }

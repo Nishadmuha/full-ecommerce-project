@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { AuthContext } from '../contexts/AuthContext.jsx';
@@ -10,6 +10,7 @@ export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const googleButtonRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -64,6 +65,37 @@ export default function Register() {
     console.log('Google Login Failed');
     setError('Google Sign-In failed. Please try again.');
   };
+
+  useEffect(() => {
+    // Center the Google button after it renders
+    const centerGoogleButton = () => {
+      if (googleButtonRef.current) {
+        const container = googleButtonRef.current;
+        const iframe = container.querySelector('iframe');
+        const div = container.querySelector('div[id*="google"], div[data-testid*="google"]');
+        
+        if (iframe) {
+          iframe.style.margin = '0 auto';
+          iframe.style.display = 'block';
+        }
+        if (div) {
+          div.style.margin = '0 auto';
+          div.style.display = 'flex';
+          div.style.justifyContent = 'center';
+        }
+      }
+    };
+
+    // Run immediately and after a short delay to catch async rendering
+    centerGoogleButton();
+    const timer = setTimeout(centerGoogleButton, 100);
+    const timer2 = setTimeout(centerGoogleButton, 500);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(timer2);
+    };
+  }, []);
 
   return (
     <div className="min-h-[calc(100vh-200px)] bg-[#f4f2fb] flex items-center justify-center px-3 sm:px-4 py-4 sm:py-6">
@@ -135,8 +167,8 @@ export default function Register() {
           <span className="flex-1 border-t border-gray-200" />
         </div>
 
-        <div className="mt-3 sm:mt-4 min-h-[42px] flex items-center justify-center w-full google-auth-wrapper">
-          <div className="flex justify-center w-full">
+        <div className="mt-3 sm:mt-4 w-full flex items-center justify-center">
+          <div ref={googleButtonRef} className="google-button-wrapper w-full flex items-center justify-center">
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
               onError={handleGoogleError}
