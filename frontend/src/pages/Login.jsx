@@ -103,15 +103,17 @@ export default function Login() {
           <span className="flex-1 border-t border-gray-200" />
         </div>
 
-        <div className="mt-3 sm:mt-4 min-h-[42px] flex items-center justify-center w-full">
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={handleGoogleError}
-            text="signin_with"
-            shape="rectangular"
-            theme="outline"
-            size="large"
-          />
+        <div className="mt-3 sm:mt-4 min-h-[42px] flex items-center justify-center w-full google-auth-wrapper">
+          <div className="flex justify-center w-full">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              text="signin_with"
+              shape="rectangular"
+              theme="outline"
+              size="large"
+            />
+          </div>
         </div>
 
         <p className="mt-3 sm:mt-4 text-center text-xs text-gray-500">

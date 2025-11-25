@@ -56,15 +56,37 @@ body {
 }
 
 /* Center Google Login Button */
-div[id*="google-login"],
-div[data-testid*="google"],
-iframe[id*="google"] {
+.google-auth-wrapper {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
+.google-auth-wrapper > div {
+  display: flex !important;
+  justify-content: center !important;
+  width: 100% !important;
+}
+
+.google-auth-wrapper div[id*="google-login"],
+.google-auth-wrapper div[data-testid*="google"],
+.google-auth-wrapper iframe[id*="google"],
+.google-auth-wrapper iframe[src*="accounts.google.com"],
+.google-auth-wrapper div[id^="gsi_"],
+.google-auth-wrapper div[role="button"][aria-labelledby*="google"] {
   margin: 0 auto !important;
   display: block !important;
 }
 
-/* Ensure Google button container is centered */
-.flex.justify-center > div > div {
-  display: flex !important;
-  justify-content: center !important;
+/* Target all child elements of Google auth wrapper */
+.google-auth-wrapper * {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Ensure iframes are centered */
+.google-auth-wrapper iframe {
+  display: block !important;
+  margin: 0 auto !important;
 }
