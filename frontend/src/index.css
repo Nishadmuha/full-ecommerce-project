@@ -54,3 +54,17 @@ body {
 .collections-slider-track.paused {
   animation-play-state: paused;
 }
+
+/* Center Google Login Button */
+div[id*="google-login"],
+div[data-testid*="google"],
+iframe[id*="google"] {
+  margin: 0 auto !important;
+  display: block !important;
+}
+
+/* Ensure Google button container is centered */
+.flex.justify-center > div > div {
+  display: flex !important;
+  justify-content: center !important;
+}

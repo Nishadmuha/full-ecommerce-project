@@ -136,16 +136,14 @@ export default function Register() {
         </div>
 
         <div className="mt-3 sm:mt-4 min-h-[42px] flex items-center justify-center w-full">
-          <div className="w-full">
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={handleGoogleError}
-              text="signup_with"
-              shape="rectangular"
-              theme="outline"
-              size="large"
-            />
-          </div>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            text="signup_with"
+            shape="rectangular"
+            theme="outline"
+            size="large"
+          />
         </div>
 
         <p className="mt-3 sm:mt-4 text-center text-xs text-gray-500">

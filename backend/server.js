@@ -6,11 +6,23 @@ const connectDB = require('./config/db');
 // Initialize Express
 const app = express();
 
+// --- FIXED CORS (ONLY THIS, nothing else) ---
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://full-ecommerce-project-kappa.vercel.app"
+    ],
+    credentials: true,
+    methods: "GET,POST,PUT,PATCH,DELETE",
+    allowedHeaders: "Content-Type,Authorization",
+  })
+);
+
 // Connect to Database
 connectDB();
 
 // Middlewares
-app.use(cors({ origin: process.env.CLIENT_URL || 'https://full-ecommerce-project-kappa.vercel.app' }));
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -25,10 +37,7 @@ app.use('/api/home', require('./routes/home'));
 app.use('/api/collections', require('./routes/collections'));
 app.use('/api/admin', require('./routes/admin'));
 
-// Serve static files from public directory
-app.use(express.static('public'));
-
-// Root route - serve index.html
+// Root route
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/index.html');
 });
