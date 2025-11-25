@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://full-ecommerce-project-u69s.onrender.com'
+  baseURL: import.meta.env.VITE_API_URL || 'https://full-ecommerce-project-u69s.onrender.com/api'
 });
 
 api.interceptors.request.use(config => {
