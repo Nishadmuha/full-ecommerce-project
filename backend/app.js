@@ -32,6 +32,9 @@ const orderRoutes = require("./routes/orders");
 const userRoutes = require("./routes/users");
 const homeRoutes = require("./routes/home");
 const adminRoutes = require("./routes/admin");
+const uploadRoutes = require("./routes/upload");
+const paymentRoutes = require("./routes/payment");
+const collectionsRoutes = require("./routes/collections");
 
 // Use Routes
 app.use("/api/auth", authRoutes);
@@ -42,6 +45,9 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/home", homeRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/upload", uploadRoutes);
+app.use("/api/payment", paymentRoutes);
+app.use("/api/collections", collectionsRoutes);
 
 // Test Route
 app.get("/", (req, res) => {
