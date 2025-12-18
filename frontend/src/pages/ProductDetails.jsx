@@ -11,7 +11,7 @@ const formatPrice = value => `₹${Number(value).toLocaleString('en-IN')}`;
 
 export default function ProductDetails() {
   const { productId } = useParams();
-  const { requireAuth } = useContext(AuthContext);
+  const { requireAuth, user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -240,7 +240,14 @@ export default function ProductDetails() {
   }, [isFullScreen, thumbnails.length]);
 
   const adjustQuantity = delta => {
-    setQuantity(prev => Math.max(1, prev + delta));
+    setQuantity(prev => {
+      const newQuantity = prev + delta;
+      const maxQuantity = product?.stock || 0;
+      if (maxQuantity > 0) {
+        return Math.max(1, Math.min(newQuantity, maxQuantity));
+      }
+      return Math.max(1, newQuantity);
+    });
   };
 
   const handleWishlist = async () => {
@@ -273,13 +280,27 @@ export default function ProductDetails() {
   };
 
   const handleAddToCart = async () => {
-    if (!requireAuth(() => {})) return;
-    
     const productIdToUse = productId || product?._id;
     if (!productIdToUse) {
       setAlertMessage('Product information is missing');
       setAlertType('error');
       setShowAlert(true);
+      return;
+    }
+
+    // Check stock availability
+    if (product?.stock !== undefined && product.stock === 0) {
+      setAlertMessage('This product is out of stock');
+      setAlertType('error');
+      setShowAlert(true);
+      return;
+    }
+
+    if (product?.stock !== undefined && quantity > product.stock) {
+      setAlertMessage(`Only ${product.stock} items available in stock`);
+      setAlertType('error');
+      setShowAlert(true);
+      setQuantity(product.stock);
       return;
     }
 
@@ -293,17 +314,21 @@ export default function ProductDetails() {
       // navigate('/cart');
     } catch (err) {
       console.error('Error adding to cart:', err);
-      setAlertMessage(err.response?.data?.message || 'Failed to add item to cart. Please try again.');
+      const errorMessage = err.response?.data?.message || 'Failed to add item to cart. Please try again.';
+      setAlertMessage(errorMessage);
       setAlertType('error');
       setShowAlert(true);
+      
+      // If stock error, update quantity to available stock
+      if (err.response?.data?.availableStock !== undefined) {
+        setQuantity(err.response.data.availableStock);
+      }
     } finally {
       setAddingToCart(false);
     }
   };
 
   const handleBuyNow = async () => {
-    if (!requireAuth(() => {})) return;
-    
     const productIdToUse = productId || product?._id;
     if (!productIdToUse) {
       setAlertMessage('Product information is missing');
@@ -312,15 +337,47 @@ export default function ProductDetails() {
       return;
     }
 
-    try {
-      // Add to cart first, then navigate to checkout
-      await addToCart(productIdToUse, quantity);
-      navigate('/checkout');
-    } catch (err) {
-      console.error('Error adding to cart:', err);
-      setAlertMessage(err.response?.data?.message || 'Failed to add item to cart. Please try again.');
+    // Check stock availability
+    if (product?.stock !== undefined && product.stock === 0) {
+      setAlertMessage('This product is out of stock');
       setAlertType('error');
       setShowAlert(true);
+      return;
+    }
+
+    if (product?.stock !== undefined && quantity > product.stock) {
+      setAlertMessage(`Only ${product.stock} items available in stock`);
+      setAlertType('error');
+      setShowAlert(true);
+      setQuantity(product.stock);
+      return;
+    }
+
+    try {
+      // Add to cart first
+      await addToCart(productIdToUse, quantity);
+      
+      // For unlogged users, navigate to cart page
+      // For logged users, navigate to checkout
+      if (!user) {
+        navigate('/cart');
+        setAlertMessage('Item added to cart! Continue shopping or proceed to checkout.');
+        setAlertType('success');
+        setShowAlert(true);
+      } else {
+        navigate('/checkout');
+      }
+    } catch (err) {
+      console.error('Error adding to cart:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to add item to cart. Please try again.';
+      setAlertMessage(errorMessage);
+      setAlertType('error');
+      setShowAlert(true);
+      
+      // If stock error, update quantity to available stock
+      if (err.response?.data?.availableStock !== undefined) {
+        setQuantity(err.response.data.availableStock);
+      }
     }
   };
 
@@ -529,12 +586,29 @@ export default function ProductDetails() {
 
             {/* Quantity Selector */}
             <div>
-              <p className="mb-3 text-sm font-semibold text-gray-900">Quantity</p>
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm font-semibold text-gray-900">Quantity</p>
+                {product?.stock !== undefined && (
+                  <p className={`text-sm font-medium ${
+                    product.stock === 0 
+                      ? 'text-red-600' 
+                      : product.stock < 10 
+                        ? 'text-amber-600' 
+                        : 'text-green-600'
+                  }`}>
+                    {product.stock === 0 
+                      ? 'Out of Stock' 
+                      : `${product.stock} available`
+                    }
+                  </p>
+                )}
+              </div>
               <div className="inline-flex items-center rounded-lg border-2 border-gray-300">
                 <button
                   type="button"
                   onClick={() => adjustQuantity(-1)}
-                  className="px-4 py-2 text-lg font-semibold text-gray-600 hover:text-charcoal transition-colors"
+                  disabled={quantity <= 1}
+                  className="px-4 py-2 text-lg font-semibold text-gray-600 hover:text-charcoal transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   –
                 </button>
@@ -542,7 +616,8 @@ export default function ProductDetails() {
                 <button
                   type="button"
                   onClick={() => adjustQuantity(1)}
-                  className="px-4 py-2 text-lg font-semibold text-gray-600 hover:text-charcoal transition-colors"
+                  disabled={product?.stock !== undefined && quantity >= product.stock}
+                  className="px-4 py-2 text-lg font-semibold text-gray-600 hover:text-charcoal transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   +
                 </button>
@@ -554,17 +629,18 @@ export default function ProductDetails() {
               <button
                 type="button"
                 onClick={handleAddToCart}
-                disabled={addingToCart}
+                disabled={addingToCart || (product?.stock !== undefined && product.stock === 0)}
                 className="flex-1 rounded-lg bg-black px-4 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-semibold uppercase tracking-wide text-white hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {addingToCart ? 'Adding...' : 'Add to Cart'}
+                {addingToCart ? 'Adding...' : product?.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
               </button>
               <button
                 type="button"
                 onClick={handleBuyNow}
-                className="flex-1 rounded-lg bg-black px-4 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-semibold uppercase tracking-wide text-white hover:bg-gray-800 transition-colors"
+                disabled={product?.stock !== undefined && product.stock === 0}
+                className="flex-1 rounded-lg bg-black px-4 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-semibold uppercase tracking-wide text-white hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Buy Now
+                {product?.stock === 0 ? 'Out of Stock' : 'Buy Now'}
               </button>
             </div>
 

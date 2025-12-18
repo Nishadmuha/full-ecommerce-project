@@ -4,20 +4,58 @@ const Product = require('../models/Product');
 const mongoose = require('mongoose');
 
 // POST /api/orders
-// Create a new order from cart
+// Create a new order from cart (authenticated or guest)
 exports.createOrder = async (req, res) => {
   try {
-    const { address } = req.body;
+    const { address, guestId, guestEmail, guestName, paymentMethod = 'cod' } = req.body;
 
     // Validate address
     if (!address) {
       return res.status(400).json({ message: 'Shipping address is required' });
     }
 
+    // For guest orders, require email and name
+    if (!req.user && (!guestEmail || !guestName)) {
+      return res.status(400).json({ 
+        message: 'Email and name are required for guest orders' 
+      });
+    }
+
+    // Determine cart identifier
+    let cartQuery = {};
+    if (req.user) {
+      cartQuery = { userId: req.user._id };
+    } else if (guestId) {
+      cartQuery = { guestId };
+    } else {
+      return res.status(400).json({ 
+        message: 'Authentication required or provide guestId' 
+      });
+    }
+
     // Get user's cart
-    const cart = await Cart.findOne({ userId: req.user._id }).populate('items.productId');
+    const cart = await Cart.findOne(cartQuery).populate('items.productId');
     if (!cart || !cart.items || cart.items.length === 0) {
       return res.status(400).json({ message: 'Cart is empty. Add items to cart before placing order.' });
+    }
+
+    // Check stock availability and validate quantities
+    for (const item of cart.items) {
+      const product = item.productId;
+      if (!product) {
+        return res.status(400).json({ 
+          message: `Product not found for item ${item._id}` 
+        });
+      }
+
+      if (product.stock === undefined || product.stock < item.quantity) {
+        return res.status(400).json({ 
+          message: `Insufficient stock for ${product.title}. Available: ${product.stock || 0}, Requested: ${item.quantity}`,
+          productId: product._id,
+          availableStock: product.stock || 0,
+          requestedQuantity: item.quantity
+        });
+      }
     }
 
     // Calculate total amount
@@ -34,18 +72,35 @@ exports.createOrder = async (req, res) => {
       price: item.productId.price || 0
     }));
 
-    // Create order (for COD - Cash on Delivery)
-    const order = await Order.create({
-      userId: req.user._id,
+    // Deduct stock from products
+    for (const item of cart.items) {
+      const product = await Product.findById(item.productId._id);
+      if (product) {
+        product.stock -= item.quantity;
+        await product.save();
+      }
+    }
+
+    // Create order
+    const orderData = {
       items: orderItems,
       totalAmount,
       status: 'pending',
       address,
       payment: {
-        method: 'cod',
-        status: 'completed' // COD is considered completed as payment will be collected on delivery
+        method: paymentMethod,
+        status: paymentMethod === 'cod' ? 'completed' : 'pending'
       }
-    });
+    };
+
+    if (req.user) {
+      orderData.userId = req.user._id;
+    } else {
+      orderData.guestEmail = guestEmail;
+      orderData.guestName = guestName;
+    }
+
+    const order = await Order.create(orderData);
 
     // Clear cart after order creation
     cart.items = [];
@@ -53,8 +108,11 @@ exports.createOrder = async (req, res) => {
 
     // Populate order with product details
     const populatedOrder = await Order.findById(order._id)
-      .populate('items.productId')
-      .populate('userId', 'name email phone');
+      .populate('items.productId');
+    
+    if (order.userId) {
+      await populatedOrder.populate('userId', 'name email phone');
+    }
 
     res.status(201).json(populatedOrder);
   } catch (err) {

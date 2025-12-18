@@ -173,7 +173,7 @@ export default function Header() {
             { icon: 'search', path: '/products', auth: false, label: 'Search Products' },
             { icon: 'heart', path: '/wishlist', auth: true, label: 'Wishlist' },
             { icon: 'user', path: '/account', auth: true, label: 'Account' },
-            { icon: 'cart', path: '/cart', auth: true, label: 'Shopping Cart' },
+            { icon: 'cart', path: '/cart', auth: false, label: 'Shopping Cart' },
           ].map(({ icon, path, auth, label }, index) => (
             <motion.button
               key={icon}

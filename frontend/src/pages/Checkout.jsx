@@ -24,6 +24,7 @@ export default function Checkout() {
   // Address form state
   const [address, setAddress] = useState({
     fullName: user?.name || '',
+    email: user?.email || '',
     phone: '',
     street: '',
     city: '',
@@ -38,12 +39,8 @@ export default function Checkout() {
   });
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
     fetchCart();
-  }, [user, navigate]);
+  }, []);
 
   const fetchCart = async () => {
     try {
@@ -77,7 +74,13 @@ export default function Checkout() {
   const handleAddressSubmit = (e) => {
     e.preventDefault();
     // Validate address
-    if (!address.fullName || !address.phone || !address.street || !address.city || !address.state || !address.zipCode) {
+    const requiredFields = !user 
+      ? ['fullName', 'email', 'phone', 'street', 'city', 'state', 'zipCode']
+      : ['fullName', 'phone', 'street', 'city', 'state', 'zipCode'];
+    
+    const missingFields = requiredFields.filter(field => !address[field]);
+    
+    if (missingFields.length > 0) {
       setAlertMessage('Please fill in all required fields');
       setAlertType('error');
       setShowAlert(true);
@@ -156,7 +159,7 @@ export default function Checkout() {
           },
           prefill: {
             name: address.fullName,
-            email: user?.email || '',
+            email: address.email || user?.email || '',
             contact: address.phone || ''
           },
           theme: {
@@ -176,7 +179,7 @@ export default function Checkout() {
         razorpay.open();
       } else if (payment.paymentMethod === 'cod') {
         // Cash on Delivery - create order directly
-        const orderData = await createOrder(address);
+        const orderData = await createOrder(address, 'cod');
         setOrder(orderData.data);
         setStep(3); // Move to confirmation step
         setProcessing(false);
@@ -257,6 +260,19 @@ export default function Checkout() {
                       className="w-full border rounded px-3 py-2"
                     />
                   </div>
+                  {!user && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={address.email}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full border rounded px-3 py-2"
+                      />
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
                     <input

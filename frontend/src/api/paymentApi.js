@@ -1,8 +1,10 @@
 import api from './api';
+import { getGuestId } from '../utils/guestId';
 
 // Create Razorpay order
 export const createRazorpayOrder = (address) => {
-  return api.post('/payment/create-order', { address });
+  const guestId = getGuestId();
+  return api.post('/payment/create-order', { address, guestId });
 };
 
 // Verify payment

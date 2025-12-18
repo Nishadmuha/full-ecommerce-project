@@ -12,17 +12,55 @@ const razorpay = new Razorpay({
 // Create Razorpay order
 exports.createRazorpayOrder = async (req, res) => {
   try {
-    const { address } = req.body;
+    const { address, guestId, guestEmail, guestName } = req.body;
 
     // Validate address
     if (!address) {
       return res.status(400).json({ message: 'Shipping address is required' });
     }
 
+    // For guest orders, require email and name
+    if (!req.user && (!guestEmail || !guestName)) {
+      return res.status(400).json({ 
+        message: 'Email and name are required for guest orders' 
+      });
+    }
+
+    // Determine cart identifier
+    let cartQuery = {};
+    if (req.user) {
+      cartQuery = { userId: req.user._id };
+    } else if (guestId) {
+      cartQuery = { guestId };
+    } else {
+      return res.status(400).json({ 
+        message: 'Authentication required or provide guestId' 
+      });
+    }
+
     // Get user's cart
-    const cart = await Cart.findOne({ userId: req.user._id }).populate('items.productId');
+    const cart = await Cart.findOne(cartQuery).populate('items.productId');
     if (!cart || !cart.items || cart.items.length === 0) {
       return res.status(400).json({ message: 'Cart is empty. Add items to cart before placing order.' });
+    }
+
+    // Check stock availability
+    for (const item of cart.items) {
+      const product = item.productId;
+      if (!product) {
+        return res.status(400).json({ 
+          message: `Product not found for item ${item._id}` 
+        });
+      }
+
+      if (product.stock === undefined || product.stock < item.quantity) {
+        return res.status(400).json({ 
+          message: `Insufficient stock for ${product.title}. Available: ${product.stock || 0}, Requested: ${item.quantity}`,
+          productId: product._id,
+          availableStock: product.stock || 0,
+          requestedQuantity: item.quantity
+        });
+      }
     }
 
     // Calculate total amount (in paise for Razorpay)
@@ -42,9 +80,18 @@ exports.createRazorpayOrder = async (req, res) => {
       price: item.productId.price || 0
     }));
 
+    // Deduct stock from products
+    const Product = require('../models/Product');
+    for (const item of cart.items) {
+      const product = await Product.findById(item.productId._id);
+      if (product) {
+        product.stock -= item.quantity;
+        await product.save();
+      }
+    }
+
     // Create order in database first (with pending status)
-    const order = await Order.create({
-      userId: req.user._id,
+    const orderData = {
       items: orderItems,
       totalAmount,
       status: 'pending',
@@ -53,7 +100,16 @@ exports.createRazorpayOrder = async (req, res) => {
         method: 'razorpay',
         status: 'pending'
       }
-    });
+    };
+
+    if (req.user) {
+      orderData.userId = req.user._id;
+    } else {
+      orderData.guestEmail = guestEmail;
+      orderData.guestName = guestName;
+    }
+
+    const order = await Order.create(orderData);
 
     // Create Razorpay order
     const razorpayOrder = await razorpay.orders.create({
@@ -98,8 +154,8 @@ exports.verifyPayment = async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    // Verify the order belongs to the user
-    if (order.userId.toString() !== req.user._id.toString()) {
+    // Verify the order belongs to the user (if authenticated)
+    if (req.user && order.userId && order.userId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Unauthorized access' });
     }
 
@@ -127,16 +183,29 @@ exports.verifyPayment = async (req, res) => {
         await order.save();
 
         // Clear cart
-        const cart = await Cart.findOne({ userId: req.user._id });
-        if (cart) {
-          cart.items = [];
-          await cart.save();
+        let cartQuery = {};
+        if (order.userId) {
+          cartQuery = { userId: order.userId };
+        } else {
+          // For guest orders, we can't clear by guestId easily, but order is created
+          // Cart will be cleared on frontend
+        }
+        
+        if (Object.keys(cartQuery).length > 0) {
+          const cart = await Cart.findOne(cartQuery);
+          if (cart) {
+            cart.items = [];
+            await cart.save();
+          }
         }
 
         // Populate order with product details
         const populatedOrder = await Order.findById(order._id)
-          .populate('items.productId')
-          .populate('userId', 'name email phone');
+          .populate('items.productId');
+        
+        if (order.userId) {
+          await populatedOrder.populate('userId', 'name email phone');
+        }
 
         res.json({
           success: true,

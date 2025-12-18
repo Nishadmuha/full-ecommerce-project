@@ -1,19 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
+const { protect, optionalAuth } = require('../middleware/authMiddleware');
 const {
   createRazorpayOrder,
   verifyPayment,
   getPaymentStatus
 } = require('../controllers/paymentController');
 
-// Create Razorpay order
-router.post('/create-order', protect, createRazorpayOrder);
+// Create Razorpay order (authenticated or guest)
+router.post('/create-order', optionalAuth, createRazorpayOrder);
 
-// Verify payment
-router.post('/verify', protect, verifyPayment);
+// Verify payment (authenticated or guest)
+router.post('/verify', optionalAuth, verifyPayment);
 
-// Get payment status
+// Get payment status (requires auth)
 router.get('/status/:orderId', protect, getPaymentStatus);
 
 module.exports = router;

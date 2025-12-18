@@ -18,12 +18,9 @@ export default function CartPage() {
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, itemId: null });
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
+    // Allow both authenticated and guest users
     fetchCart();
-  }, [user, navigate]);
+  }, []);
 
   const fetchCart = async () => {
     try {
@@ -62,12 +59,22 @@ export default function CartPage() {
       const item = cartItems.find(i => i._id === itemId);
       if (!item) return;
       
+      // Check stock availability
+      if (item.availableStock !== undefined && item.quantity >= item.availableStock) {
+        showAlert(`Only ${item.availableStock} items available in stock`, 'error');
+        return;
+      }
+      
       const newQuantity = item.quantity + 1;
       const response = await updateQuantity(itemId, newQuantity);
       setCartItems(response.data.items || []);
     } catch (err) {
       console.error('Error updating quantity:', err);
-      showAlert('Failed to update quantity. Please try again.', 'error');
+      const errorMessage = err.response?.data?.message || 'Failed to update quantity. Please try again.';
+      showAlert(errorMessage, 'error');
+      
+      // Refresh cart to get updated stock info
+      fetchCart();
     }
   };
 
@@ -178,26 +185,44 @@ export default function CartPage() {
                       </div>
 
                       {/* Quantity Counter */}
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => decrementQuantity(item._id)}
-                          className="flex h-8 w-8 items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
-                          aria-label="Decrease quantity"
-                        >
-                          <span className="text-lg">–</span>
-                        </button>
-                        <span className="w-8 text-center text-sm font-semibold text-gray-900">
-                          {item.quantity}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => incrementQuantity(item._id)}
-                          className="flex h-8 w-8 items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
-                          aria-label="Increase quantity"
-                        >
-                          <span className="text-lg">+</span>
-                        </button>
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => decrementQuantity(item._id)}
+                            disabled={item.quantity <= 1}
+                            className="flex h-8 w-8 items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="Decrease quantity"
+                          >
+                            <span className="text-lg">–</span>
+                          </button>
+                          <span className="w-8 text-center text-sm font-semibold text-gray-900">
+                            {item.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => incrementQuantity(item._id)}
+                            disabled={item.availableStock !== undefined && item.quantity >= item.availableStock}
+                            className="flex h-8 w-8 items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="Increase quantity"
+                          >
+                            <span className="text-lg">+</span>
+                          </button>
+                        </div>
+                        {item.availableStock !== undefined && (
+                          <span className={`text-xs ${
+                            item.availableStock === 0 
+                              ? 'text-red-600' 
+                              : item.availableStock < 10 
+                                ? 'text-amber-600' 
+                                : 'text-green-600'
+                          }`}>
+                            {item.availableStock === 0 
+                              ? 'Out of stock' 
+                              : `${item.availableStock} available`
+                            }
+                          </span>
+                        )}
                       </div>
 
                       {/* Total: Bold Red */}

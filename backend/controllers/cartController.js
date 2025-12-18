@@ -3,18 +3,46 @@ const Product = require('../models/Product');
 const mongoose = require('mongoose');
 
 // GET /api/cart
-// Return the authenticated user's cart with product details populated
+// Return the user's cart (authenticated or guest) with product details populated
 exports.getCart = async (req, res) => {
   try {
-    let cart = await Cart.findOne({ userId: req.user._id }).populate('items.productId');
+    let cart;
+    const guestId = req.headers['x-guest-id'] || req.body.guestId;
 
-    // If the user has no cart yet, create an empty one so the frontend
-    // always receives a consistent object shape.
-    if (!cart) {
-      cart = await Cart.create({ userId: req.user._id, items: [] });
+    if (req.user) {
+      // Authenticated user
+      cart = await Cart.findOne({ userId: req.user._id }).populate('items.productId');
+      if (!cart) {
+        cart = await Cart.create({ userId: req.user._id, items: [] });
+      }
+    } else if (guestId) {
+      // Guest user
+      cart = await Cart.findOne({ guestId }).populate('items.productId');
+      if (!cart) {
+        cart = await Cart.create({ guestId, items: [] });
+      }
+    } else {
+      // No user and no guestId - return empty cart
+      return res.json({ items: [], userId: null, guestId: null });
     }
 
-    res.json(cart);
+    // Check stock availability for each item
+    const itemsWithStock = await Promise.all(
+      cart.items.map(async (item) => {
+        const product = item.productId;
+        if (product && product.stock !== undefined) {
+          return {
+            ...item.toObject(),
+            availableStock: product.stock,
+            isOutOfStock: product.stock === 0,
+            canAddMore: item.quantity < product.stock
+          };
+        }
+        return item.toObject();
+      })
+    );
+
+    res.json({ ...cart.toObject(), items: itemsWithStock });
   } catch (err) {
     console.error('Get cart error', err);
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -22,10 +50,10 @@ exports.getCart = async (req, res) => {
 };
 
 // POST /api/cart
-// Add or update a product line in the cart for the authenticated user
+// Add or update a product line in the cart (authenticated or guest)
 exports.addToCart = async (req, res) => {
   try {
-    const { productId, quantity = 1 } = req.body;
+    const { productId, quantity = 1, guestId } = req.body;
 
     if (!productId) {
       return res.status(400).json({ message: 'productId is required' });
@@ -45,26 +73,62 @@ exports.addToCart = async (req, res) => {
       });
     }
 
-    // Verify product exists
+    // Verify product exists and check stock
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    let cart = await Cart.findOne({ userId: req.user._id });
+    // Check if product is in stock
+    if (product.stock === 0) {
+      return res.status(400).json({ 
+        message: 'Product is out of stock',
+        availableStock: 0
+      });
+    }
+
+    // Determine cart identifier
+    let cartQuery = {};
+    if (req.user) {
+      cartQuery = { userId: req.user._id };
+    } else if (guestId) {
+      cartQuery = { guestId };
+    } else {
+      return res.status(400).json({ 
+        message: 'Authentication required or provide guestId' 
+      });
+    }
+
+    let cart = await Cart.findOne(cartQuery);
     if (!cart) {
-      cart = await Cart.create({ userId: req.user._id, items: [] });
+      cart = await Cart.create({ ...cartQuery, items: [] });
     }
 
     const itemIndex = cart.items.findIndex(
       (i) => i.productId.toString() === String(productId)
     );
 
+    let newQuantity;
     if (itemIndex > -1) {
       // Update quantity for existing item (add to existing quantity)
-      cart.items[itemIndex].quantity += quantity;
+      newQuantity = cart.items[itemIndex].quantity + quantity;
     } else {
-      // Push new line item
+      // New item
+      newQuantity = quantity;
+    }
+
+    // Check if requested quantity exceeds available stock
+    if (newQuantity > product.stock) {
+      return res.status(400).json({ 
+        message: `Only ${product.stock} items available in stock`,
+        availableStock: product.stock,
+        requestedQuantity: newQuantity
+      });
+    }
+
+    if (itemIndex > -1) {
+      cart.items[itemIndex].quantity = newQuantity;
+    } else {
       cart.items.push({ productId, quantity });
     }
 
@@ -72,7 +136,15 @@ exports.addToCart = async (req, res) => {
 
     // Re-populate before sending back so frontend gets full product info
     const populated = await Cart.findById(cart._id).populate('items.productId');
-    res.json(populated);
+    
+    // Add stock info to response
+    const itemsWithStock = populated.items.map(item => ({
+      ...item.toObject(),
+      availableStock: item.productId.stock,
+      isOutOfStock: item.productId.stock === 0
+    }));
+
+    res.json({ ...populated.toObject(), items: itemsWithStock });
   } catch (err) {
     console.error('Add to cart error', err);
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -84,7 +156,7 @@ exports.addToCart = async (req, res) => {
 exports.updateQuantity = async (req, res) => {
   try {
     const { itemId } = req.params;
-    const { quantity } = req.body;
+    const { quantity, guestId } = req.body;
 
     // Validate itemId format
     if (!mongoose.Types.ObjectId.isValid(itemId)) {
@@ -97,7 +169,19 @@ exports.updateQuantity = async (req, res) => {
       return res.status(400).json({ message: 'Quantity must be at least 1' });
     }
 
-    const cart = await Cart.findOne({ userId: req.user._id });
+    // Determine cart identifier
+    let cartQuery = {};
+    if (req.user) {
+      cartQuery = { userId: req.user._id };
+    } else if (guestId) {
+      cartQuery = { guestId };
+    } else {
+      return res.status(400).json({ 
+        message: 'Authentication required or provide guestId' 
+      });
+    }
+
+    const cart = await Cart.findOne(cartQuery).populate('items.productId');
     if (!cart) {
       return res.status(404).json({ 
         message: 'Cart not found',
@@ -128,12 +212,38 @@ exports.updateQuantity = async (req, res) => {
       });
     }
 
+    // Check stock availability
+    const product = cart.items[itemIndex].productId;
+    if (product && product.stock !== undefined) {
+      if (product.stock === 0) {
+        return res.status(400).json({ 
+          message: 'Product is out of stock',
+          availableStock: 0
+        });
+      }
+      if (quantity > product.stock) {
+        return res.status(400).json({ 
+          message: `Only ${product.stock} items available in stock`,
+          availableStock: product.stock,
+          requestedQuantity: quantity
+        });
+      }
+    }
+
     cart.items[itemIndex].quantity = quantity;
     await cart.save();
 
     // Re-populate before sending back
     const populated = await Cart.findById(cart._id).populate('items.productId');
-    res.json(populated);
+    
+    // Add stock info to response
+    const itemsWithStock = populated.items.map(item => ({
+      ...item.toObject(),
+      availableStock: item.productId.stock,
+      isOutOfStock: item.productId.stock === 0
+    }));
+
+    res.json({ ...populated.toObject(), items: itemsWithStock });
   } catch (err) {
     console.error('Update quantity error', err);
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -145,6 +255,7 @@ exports.updateQuantity = async (req, res) => {
 exports.removeFromCart = async (req, res) => {
   try {
     const { itemId } = req.params;
+    const { guestId } = req.body;
 
     // Validate itemId format
     if (!mongoose.Types.ObjectId.isValid(itemId)) {
@@ -153,7 +264,19 @@ exports.removeFromCart = async (req, res) => {
       });
     }
 
-    const cart = await Cart.findOne({ userId: req.user._id });
+    // Determine cart identifier
+    let cartQuery = {};
+    if (req.user) {
+      cartQuery = { userId: req.user._id };
+    } else if (guestId) {
+      cartQuery = { guestId };
+    } else {
+      return res.status(400).json({ 
+        message: 'Authentication required or provide guestId' 
+      });
+    }
+
+    const cart = await Cart.findOne(cartQuery);
     if (!cart) {
       return res.status(404).json({ 
         message: 'Cart not found',
@@ -189,7 +312,15 @@ exports.removeFromCart = async (req, res) => {
 
     // Re-populate before sending back
     const populated = await Cart.findById(cart._id).populate('items.productId');
-    res.json(populated);
+    
+    // Add stock info to response
+    const itemsWithStock = populated.items.map(item => ({
+      ...item.toObject(),
+      availableStock: item.productId.stock,
+      isOutOfStock: item.productId.stock === 0
+    }));
+
+    res.json({ ...populated.toObject(), items: itemsWithStock });
   } catch (err) {
     console.error('Remove from cart error', err);
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -200,7 +331,21 @@ exports.removeFromCart = async (req, res) => {
 // Clear entire cart
 exports.clearCart = async (req, res) => {
   try {
-    const cart = await Cart.findOne({ userId: req.user._id });
+    const { guestId } = req.body;
+
+    // Determine cart identifier
+    let cartQuery = {};
+    if (req.user) {
+      cartQuery = { userId: req.user._id };
+    } else if (guestId) {
+      cartQuery = { guestId };
+    } else {
+      return res.status(400).json({ 
+        message: 'Authentication required or provide guestId' 
+      });
+    }
+
+    const cart = await Cart.findOne(cartQuery);
     if (!cart) {
       return res.status(404).json({ message: 'Cart not found' });
     }
