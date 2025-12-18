@@ -7,12 +7,23 @@ const Cart = require('../models/Cart');
  */
 const cleanupExpiredGuestCarts = async () => {
   try {
+    // Check if mongoose is connected
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) {
+      // Database not connected yet, skip cleanup
+      return 0;
+    }
+    
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     
     // Delete guest carts with no activity in the last 5 minutes
+    // Also handle carts without lastActivity (old carts) - set them to expire after 5 min from now
     const result = await Cart.deleteMany({
       guestId: { $exists: true, $ne: null },
-      lastActivity: { $lt: fiveMinutesAgo }
+      $or: [
+        { lastActivity: { $lt: fiveMinutesAgo } },
+        { lastActivity: { $exists: false } } // Old carts without lastActivity field
+      ]
     });
     
     if (result.deletedCount > 0) {

@@ -158,12 +158,14 @@ exports.addToCart = async (req, res) => {
     // Re-populate before sending back so frontend gets full product info
     const populated = await Cart.findById(cart._id).populate('items.productId');
     
-    // Add stock info to response
-    const itemsWithStock = populated.items.map(item => ({
-      ...item.toObject(),
-      availableStock: item.productId.stock,
-      isOutOfStock: item.productId.stock === 0
-    }));
+    // Add stock info to response (filter out items with null products)
+    const itemsWithStock = populated.items
+      .filter(item => item.productId) // Filter out deleted products
+      .map(item => ({
+        ...item.toObject(),
+        availableStock: item.productId?.stock,
+        isOutOfStock: item.productId?.stock === 0
+      }));
 
     res.json({ ...populated.toObject(), items: itemsWithStock });
   } catch (err) {
@@ -259,12 +261,14 @@ exports.updateQuantity = async (req, res) => {
     // Re-populate before sending back
     const populated = await Cart.findById(cart._id).populate('items.productId');
     
-    // Add stock info to response
-    const itemsWithStock = populated.items.map(item => ({
-      ...item.toObject(),
-      availableStock: item.productId.stock,
-      isOutOfStock: item.productId.stock === 0
-    }));
+    // Add stock info to response (filter out items with null products)
+    const itemsWithStock = populated.items
+      .filter(item => item.productId) // Filter out deleted products
+      .map(item => ({
+        ...item.toObject(),
+        availableStock: item.productId?.stock,
+        isOutOfStock: item.productId?.stock === 0
+      }));
 
     res.json({ ...populated.toObject(), items: itemsWithStock });
   } catch (err) {
@@ -338,12 +342,14 @@ exports.removeFromCart = async (req, res) => {
     // Re-populate before sending back
     const populated = await Cart.findById(cart._id).populate('items.productId');
     
-    // Add stock info to response
-    const itemsWithStock = populated.items.map(item => ({
-      ...item.toObject(),
-      availableStock: item.productId.stock,
-      isOutOfStock: item.productId.stock === 0
-    }));
+    // Add stock info to response (filter out items with null products)
+    const itemsWithStock = populated.items
+      .filter(item => item.productId) // Filter out deleted products
+      .map(item => ({
+        ...item.toObject(),
+        availableStock: item.productId?.stock,
+        isOutOfStock: item.productId?.stock === 0
+      }));
 
     res.json({ ...populated.toObject(), items: itemsWithStock });
   } catch (err) {
