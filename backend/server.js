@@ -25,6 +25,7 @@ connectDB();
 // Middlewares
 app.use(express.json());
 app.use(express.static('public'));
+app.use('/uploads', express.static('uploads')); // Serve uploaded files
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -36,6 +37,8 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/home', require('./routes/home'));
 app.use('/api/collections', require('./routes/collections'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/upload', require('./routes/upload'));
+app.use('/api/payment', require('./routes/payment'));
 
 // Root route
 app.get('/', (req, res) => {

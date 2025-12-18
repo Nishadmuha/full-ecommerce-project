@@ -5,6 +5,7 @@ import api from '../api/api';
 import { AuthContext } from '../contexts/AuthContext.jsx';
 import { addToCart } from '../api/cartApi';
 import { getWishlist, addToWishlist, removeFromWishlist } from '../api/wishlistApi';
+import SuccessAlert from '../components/SuccessAlert';
 
 const formatPrice = value => `₹${Number(value).toLocaleString('en-IN')}`;
 
@@ -24,6 +25,9 @@ export default function ProductDetails() {
   const [isAutoRotating, setIsAutoRotating] = useState(true);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState('success');
+  const [showAlert, setShowAlert] = useState(false);
 
   // Update images when color changes (only if user clicked a color)
   useEffect(() => {
@@ -244,7 +248,9 @@ export default function ProductDetails() {
 
     const productIdToUse = productId || product?._id;
     if (!productIdToUse) {
-      alert('Product information is missing');
+      setAlertMessage('Product information is missing');
+      setAlertType('error');
+      setShowAlert(true);
       return;
     }
 
@@ -260,7 +266,9 @@ export default function ProductDetails() {
       }
     } catch (err) {
       console.error('Error updating wishlist:', err);
-      alert(err.response?.data?.message || 'Failed to update wishlist. Please try again.');
+      setAlertMessage(err.response?.data?.message || 'Failed to update wishlist. Please try again.');
+      setAlertType('error');
+      setShowAlert(true);
     }
   };
 
@@ -269,19 +277,25 @@ export default function ProductDetails() {
     
     const productIdToUse = productId || product?._id;
     if (!productIdToUse) {
-      alert('Product information is missing');
+      setAlertMessage('Product information is missing');
+      setAlertType('error');
+      setShowAlert(true);
       return;
     }
 
     try {
       setAddingToCart(true);
       await addToCart(productIdToUse, quantity);
-      alert('Item added to cart successfully!');
+      setAlertMessage('Item added to cart successfully!');
+      setAlertType('success');
+      setShowAlert(true);
       // Optionally navigate to cart
       // navigate('/cart');
     } catch (err) {
       console.error('Error adding to cart:', err);
-      alert(err.response?.data?.message || 'Failed to add item to cart. Please try again.');
+      setAlertMessage(err.response?.data?.message || 'Failed to add item to cart. Please try again.');
+      setAlertType('error');
+      setShowAlert(true);
     } finally {
       setAddingToCart(false);
     }
@@ -292,7 +306,9 @@ export default function ProductDetails() {
     
     const productIdToUse = productId || product?._id;
     if (!productIdToUse) {
-      alert('Product information is missing');
+      setAlertMessage('Product information is missing');
+      setAlertType('error');
+      setShowAlert(true);
       return;
     }
 
@@ -302,7 +318,9 @@ export default function ProductDetails() {
       navigate('/checkout');
     } catch (err) {
       console.error('Error adding to cart:', err);
-      alert(err.response?.data?.message || 'Failed to add item to cart. Please try again.');
+      setAlertMessage(err.response?.data?.message || 'Failed to add item to cart. Please try again.');
+      setAlertType('error');
+      setShowAlert(true);
     }
   };
 
@@ -773,6 +791,14 @@ export default function ProductDetails() {
 
         </div>
       )}
+
+      {/* Success/Error Alert */}
+      <SuccessAlert
+        message={alertMessage}
+        isOpen={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={alertType}
+      />
     </div>
   );
 }

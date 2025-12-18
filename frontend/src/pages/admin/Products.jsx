@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/api';
 import { createProduct, updateProduct, deleteProduct, getProductsByCategory } from '../../api/adminApi';
+import { uploadImage, uploadImages } from '../../api/uploadApi';
 
 export default function Products() {
   const [products, setProducts] = useState([]);
@@ -20,6 +21,11 @@ export default function Products() {
     isNew: false,
     stock: 0,
     colors: [],
+  });
+  const [uploading, setUploading] = useState({
+    mainImage: false,
+    additionalImages: [],
+    colorImages: {}
   });
 
   useEffect(() => {
@@ -71,8 +77,118 @@ export default function Products() {
     }
   };
 
+  // Handle main image upload
+  const handleMainImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    try {
+      setUploading(prev => ({ ...prev, mainImage: true }));
+      const response = await uploadImage(file);
+      const baseURL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      const imageUrl = `${baseURL}${response.data.url}`;
+      setFormData(prev => ({ ...prev, image: imageUrl }));
+      alert('Image uploaded successfully!');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert(error.response?.data?.message || 'Error uploading image. Please try again.');
+    } finally {
+      setUploading(prev => ({ ...prev, mainImage: false }));
+    }
+  };
+
+  // Handle additional images upload
+  const handleAdditionalImagesUpload = async (e, index) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    try {
+      setUploading(prev => ({
+        ...prev,
+        additionalImages: [...prev.additionalImages, index]
+      }));
+      const response = await uploadImage(file);
+      const baseURL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      const imageUrl = `${baseURL}${response.data.url}`;
+      const newImages = [...(formData.images || [])];
+      newImages[index] = imageUrl;
+      setFormData(prev => ({ ...prev, images: newImages }));
+      alert('Image uploaded successfully!');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert(error.response?.data?.message || 'Error uploading image. Please try again.');
+    } finally {
+      setUploading(prev => ({
+        ...prev,
+        additionalImages: prev.additionalImages.filter(i => i !== index)
+      }));
+    }
+  };
+
+  // Handle color image upload
+  const handleColorImageUpload = async (e, colorIndex, imageIndex = null) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    try {
+      const key = `${colorIndex}-${imageIndex !== null ? imageIndex : 'main'}`;
+      setUploading(prev => ({
+        ...prev,
+        colorImages: { ...prev.colorImages, [key]: true }
+      }));
+      const response = await uploadImage(file);
+      const baseURL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      const imageUrl = `${baseURL}${response.data.url}`;
+      
+      const newColors = [...formData.colors];
+      if (imageIndex !== null) {
+        // Uploading additional color image
+        if (!newColors[colorIndex].images) {
+          newColors[colorIndex].images = ['', '', ''];
+        }
+        newColors[colorIndex].images[imageIndex] = imageUrl;
+      } else {
+        // Uploading main color image
+        newColors[colorIndex].image = imageUrl;
+      }
+      setFormData(prev => ({ ...prev, colors: newColors }));
+      alert('Image uploaded successfully!');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert(error.response?.data?.message || 'Error uploading image. Please try again.');
+    } finally {
+      setUploading(prev => {
+        const newColorImages = { ...prev.colorImages };
+        delete newColorImages[`${colorIndex}-${imageIndex !== null ? imageIndex : 'main'}`];
+        return { ...prev, colorImages: newColorImages };
+      });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate that main image is provided
+    if (!formData.image || !formData.image.trim()) {
+      alert('Please provide a main image (upload file or enter URL)');
+      return;
+    }
+    
     try {
       // Filter out empty colors and clean color images
       const cleanedColors = (formData.colors || [])
@@ -338,54 +454,73 @@ export default function Products() {
 
               {/* Main Image */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Main Image URL *</label>
-                <input
-                  type="url"
-                  required
-                  value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://example.com/image.jpg"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Main Image *</label>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleMainImageUpload}
+                      disabled={uploading.mainImage}
+                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    />
+                    {uploading.mainImage && (
+                      <span className="px-3 py-2 text-sm text-gray-500">Uploading...</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500">OR enter image URL:</p>
+                  <input
+                    type="url"
+                    value={formData.image}
+                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://example.com/image.jpg"
+                  />
+                  {formData.image && (
+                    <div className="mt-2">
+                      <img src={formData.image} alt="Preview" className="h-32 w-32 object-cover rounded border" />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Additional Images - 3 separate fields */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Additional Images (Optional - Up to 3)</label>
-                <div className="space-y-2">
-                  <input
-                    type="url"
-                    value={formData.images?.[0] || ''}
-                    onChange={(e) => {
-                      const newImages = [...(formData.images || [])];
-                      newImages[0] = e.target.value;
-                      setFormData({ ...formData, images: newImages.filter(img => img) });
-                    }}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Image 1 URL (optional)"
-                  />
-                  <input
-                    type="url"
-                    value={formData.images?.[1] || ''}
-                    onChange={(e) => {
-                      const newImages = [...(formData.images || [])];
-                      newImages[1] = e.target.value;
-                      setFormData({ ...formData, images: newImages.filter(img => img) });
-                    }}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Image 2 URL (optional)"
-                  />
-                  <input
-                    type="url"
-                    value={formData.images?.[2] || ''}
-                    onChange={(e) => {
-                      const newImages = [...(formData.images || [])];
-                      newImages[2] = e.target.value;
-                      setFormData({ ...formData, images: newImages.filter(img => img) });
-                    }}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Image 3 URL (optional)"
-                  />
+                <div className="space-y-3">
+                  {[0, 1, 2].map((index) => (
+                    <div key={index} className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleAdditionalImagesUpload(e, index)}
+                          disabled={uploading.additionalImages.includes(index)}
+                          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                        />
+                        {uploading.additionalImages.includes(index) && (
+                          <span className="px-3 py-2 text-sm text-gray-500">Uploading...</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">OR enter image URL:</p>
+                      <input
+                        type="url"
+                        value={formData.images?.[index] || ''}
+                        onChange={(e) => {
+                          const newImages = [...(formData.images || [])];
+                          newImages[index] = e.target.value;
+                          setFormData({ ...formData, images: newImages.filter(img => img) });
+                        }}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder={`Image ${index + 1} URL (optional)`}
+                      />
+                      {formData.images?.[index] && (
+                        <div className="mt-1">
+                          <img src={formData.images[index]} alt={`Preview ${index + 1}`} className="h-24 w-24 object-cover rounded border" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -443,29 +578,54 @@ export default function Products() {
                         />
                       </div>
                       <div>
-                          <label className="block text-xs text-gray-600 mb-1">Main Image URL</label>
-                        <input
-                          type="url"
-                            value={color.image || ''}
-                            onChange={(e) => updateColor(colorIndex, 'image', e.target.value)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="https://example.com/color-main.jpg"
-                        />
+                          <label className="block text-xs text-gray-600 mb-1">Main Image</label>
+                          <div className="space-y-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleColorImageUpload(e, colorIndex, null)}
+                              disabled={uploading.colorImages[`${colorIndex}-main`]}
+                              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                            />
+                            {uploading.colorImages[`${colorIndex}-main`] && (
+                              <span className="text-xs text-gray-500">Uploading...</span>
+                            )}
+                            <p className="text-xs text-gray-500">OR enter URL:</p>
+                            <input
+                              type="url"
+                              value={color.image || ''}
+                              onChange={(e) => updateColor(colorIndex, 'image', e.target.value)}
+                              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="https://example.com/color-main.jpg"
+                            />
+                          </div>
                     </div>
                   </div>
 
                       <div>
                         <label className="block text-xs text-gray-600 mb-2">Additional Images (3 images)</label>
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {[0, 1, 2].map((imgIndex) => (
-                        <input
-                              key={imgIndex}
-                          type="url"
-                              value={color.images?.[imgIndex] || ''}
-                              onChange={(e) => updateColorImage(colorIndex, imgIndex, e.target.value)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              placeholder={`Image ${imgIndex + 1} URL (optional)`}
-                        />
+                            <div key={imgIndex} className="space-y-2">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleColorImageUpload(e, colorIndex, imgIndex)}
+                                disabled={uploading.colorImages[`${colorIndex}-${imgIndex}`]}
+                                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                              />
+                              {uploading.colorImages[`${colorIndex}-${imgIndex}`] && (
+                                <span className="text-xs text-gray-500">Uploading...</span>
+                              )}
+                              <p className="text-xs text-gray-500">OR enter URL:</p>
+                              <input
+                                type="url"
+                                value={color.images?.[imgIndex] || ''}
+                                onChange={(e) => updateColorImage(colorIndex, imgIndex, e.target.value)}
+                                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder={`Image ${imgIndex + 1} URL (optional)`}
+                              />
+                            </div>
                           ))}
                     </div>
                       </div>

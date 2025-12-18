@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { AuthContext } from '../contexts/AuthContext.jsx';
 import { googleAuth } from '../api/authApi';
+import SuccessAlert from '../components/SuccessAlert';
 
 export default function Login() {
   const { login } = useContext(AuthContext);
@@ -11,6 +12,9 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const googleButtonRef = useRef(null);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState('success');
+  const [showAlert, setShowAlert] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -18,9 +22,18 @@ export default function Login() {
     setLoading(true);
     try {
       await login(form);
-      navigate('/');
+      setAlertMessage('Login successful! Welcome back.');
+      setAlertType('success');
+      setShowAlert(true);
+      // Navigate after showing alert
+      setTimeout(() => {
+        navigate('/');
+      }, 1500);
     } catch (err) {
       setError(err.message);
+      setAlertMessage(err.message);
+      setAlertType('error');
+      setShowAlert(true);
     } finally {
       setLoading(false);
     }
@@ -40,10 +53,19 @@ export default function Login() {
       
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
-      navigate('/');
-      window.location.reload();
+      setAlertMessage('Google login successful! Welcome back.');
+      setAlertType('success');
+      setShowAlert(true);
+      setTimeout(() => {
+        navigate('/');
+        window.location.reload();
+      }, 1500);
     } catch (err) {
-      setError(err.response?.data?.message || 'Google authentication failed');
+      const errorMsg = err.response?.data?.message || 'Google authentication failed';
+      setError(errorMsg);
+      setAlertMessage(errorMsg);
+      setAlertType('error');
+      setShowAlert(true);
       console.error('Google auth error:', err);
     } finally {
       setLoading(false);
@@ -155,6 +177,14 @@ export default function Login() {
           </Link>
         </p>
       </div>
+
+      {/* Success/Error Alert */}
+      <SuccessAlert
+        message={alertMessage}
+        isOpen={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={alertType}
+      />
     </div>
   );
 }

@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getProfile, updateProfile, deleteAccount } from '../api/userApi';
+import { uploadImage } from '../api/uploadApi';
+import SuccessAlert from '../components/SuccessAlert';
 
 const sections = ['Profile', 'Order History', 'Shipping Addresses', 'Settings', 'Logout'];
 
@@ -22,6 +24,10 @@ export default function Account() {
     phone: '',
     profileImage: '',
   });
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState('success');
+  const [showAlert, setShowAlert] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -53,6 +59,36 @@ export default function Account() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setAlertMessage('Please select an image file');
+      setAlertType('error');
+      setShowAlert(true);
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+      const response = await uploadImage(file);
+      const baseURL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      const imageUrl = `${baseURL}${response.data.url}`;
+      setFormData(prev => ({ ...prev, profileImage: imageUrl }));
+      setAlertMessage('Profile image uploaded successfully!');
+      setAlertType('success');
+      setShowAlert(true);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      setAlertMessage(error.response?.data?.message || 'Error uploading image. Please try again.');
+      setAlertType('error');
+      setShowAlert(true);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     try {
@@ -60,7 +96,9 @@ export default function Account() {
       const response = await updateProfile(formData);
       setProfile(response.data);
       setEditing(false);
-      alert('Profile updated successfully!');
+      setAlertMessage('Profile updated successfully!');
+      setAlertType('success');
+      setShowAlert(true);
       // Update user in context if needed
       if (response.data) {
         const updatedUser = { ...user, ...response.data };
@@ -68,7 +106,9 @@ export default function Account() {
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert(error.response?.data?.message || 'Failed to update profile. Please try again.');
+      setAlertMessage(error.response?.data?.message || 'Failed to update profile. Please try again.');
+      setAlertType('error');
+      setShowAlert(true);
     } finally {
       setSaving(false);
     }
@@ -186,21 +226,40 @@ export default function Account() {
                 )}
               </div>
               {editing && (
-                <div className="w-full max-w-md">
-                  <label className="text-sm text-gray-500">
-                    Profile Image URL
+                <div className="w-full max-w-md space-y-3">
+                  <div>
+                    <label className="text-sm text-gray-500 block mb-2">
+                      Upload Profile Image
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 disabled:opacity-50"
+                    />
+                    {uploadingImage && (
+                      <p className="mt-1 text-xs text-gray-500">Uploading...</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-500 block mb-2">
+                      OR Enter Image URL
+                    </label>
                     <input
                       type="url"
                       name="profileImage"
                       value={formData.profileImage}
                       onChange={handleInputChange}
                       placeholder="https://example.com/image.jpg"
-                      className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2"
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2"
                     />
-                  </label>
-                  <p className="mt-1 text-xs text-gray-400">
-                    Enter image URL or leave empty to use initial
-                  </p>
+                  </div>
+                  {formData.profileImage && (
+                    <div className="mt-2">
+                      <img src={formData.profileImage} alt="Preview" className="h-24 w-24 object-cover rounded-full border" />
+                    </div>
+                  )}
                 </div>
               )}
               {!editing && (
@@ -371,6 +430,14 @@ export default function Account() {
           </div>
         </div>
       )}
+
+      {/* Success/Error Alert */}
+      <SuccessAlert
+        message={alertMessage}
+        isOpen={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={alertType}
+      />
     </div>
   );
 }

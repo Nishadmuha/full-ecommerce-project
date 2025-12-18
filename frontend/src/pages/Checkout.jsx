@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getCart } from '../api/cartApi';
 import { createOrder } from '../api/orderApi';
+import { createRazorpayOrder, verifyPayment } from '../api/paymentApi';
+import SuccessAlert from '../components/SuccessAlert';
 
 const formatPrice = value => `₹${Number(value).toLocaleString('en-IN')}`;
 
@@ -15,6 +17,9 @@ export default function Checkout() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [order, setOrder] = useState(null);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState('success');
+  const [showAlert, setShowAlert] = useState(false);
   
   // Address form state
   const [address, setAddress] = useState({
@@ -29,11 +34,7 @@ export default function Checkout() {
 
   // Payment form state
   const [payment, setPayment] = useState({
-    cardNumber: '',
-    cardName: '',
-    expiryDate: '',
-    cvv: '',
-    paymentMethod: 'card'
+    paymentMethod: 'razorpay' // Default to Razorpay
   });
 
   useEffect(() => {
@@ -83,27 +84,106 @@ export default function Checkout() {
     setStep(2); // Move to payment step
   };
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate payment
-    if (payment.paymentMethod === 'card') {
-      if (!payment.cardNumber || !payment.cardName || !payment.expiryDate || !payment.cvv) {
-        alert('Please fill in all payment details');
-        return;
-      }
-    }
-
     setProcessing(true);
     try {
-      // Create order
-      const orderData = await createOrder(address);
-      setOrder(orderData.data);
-      setStep(3); // Move to confirmation step
+      if (payment.paymentMethod === 'razorpay') {
+        // Create Razorpay order
+        const response = await createRazorpayOrder(address);
+        const { orderId, razorpayOrderId, amount, currency, key } = response.data;
+
+        // Load Razorpay script
+        const razorpayLoaded = await loadRazorpayScript();
+        if (!razorpayLoaded) {
+          setAlertMessage('Razorpay SDK failed to load. Please refresh the page.');
+          setAlertType('error');
+          setShowAlert(true);
+          setProcessing(false);
+          return;
+        }
+
+        // Initialize Razorpay checkout
+        const options = {
+          key: key,
+          amount: amount,
+          currency: currency,
+          name: '6XO BAGS',
+          description: 'Order Payment',
+          order_id: razorpayOrderId,
+          handler: async function (response) {
+            try {
+              // Verify payment on backend
+              const verifyResponse = await verifyPayment({
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+                orderId: orderId
+              });
+
+              if (verifyResponse.data.success) {
+                setOrder(verifyResponse.data.order);
+                setStep(3); // Move to confirmation step
+                setAlertMessage('Payment successful! Order confirmed.');
+                setAlertType('success');
+                setShowAlert(true);
+              } else {
+                setAlertMessage('Payment verification failed. Please contact support.');
+                setAlertType('error');
+                setShowAlert(true);
+              }
+            } catch (error) {
+              console.error('Payment verification error:', error);
+              setAlertMessage(error.response?.data?.message || 'Payment verification failed. Please contact support.');
+              setAlertType('error');
+              setShowAlert(true);
+            } finally {
+              setProcessing(false);
+            }
+          },
+          prefill: {
+            name: address.fullName,
+            email: user?.email || '',
+            contact: address.phone || ''
+          },
+          theme: {
+            color: '#000000'
+          },
+          modal: {
+            ondismiss: function() {
+              setProcessing(false);
+              setAlertMessage('Payment cancelled');
+              setAlertType('error');
+              setShowAlert(true);
+            }
+          }
+        };
+
+        const razorpay = new window.Razorpay(options);
+        razorpay.open();
+      } else if (payment.paymentMethod === 'cod') {
+        // Cash on Delivery - create order directly
+        const orderData = await createOrder(address);
+        setOrder(orderData.data);
+        setStep(3); // Move to confirmation step
+        setProcessing(false);
+      }
     } catch (error) {
-      console.error('Error creating order:', error);
-      alert(error.response?.data?.message || 'Failed to create order. Please try again.');
-    } finally {
+      console.error('Error processing payment:', error);
+      setAlertMessage(error.response?.data?.message || 'Failed to process payment. Please try again.');
+      setAlertType('error');
+      setShowAlert(true);
       setProcessing(false);
     }
   };
@@ -267,66 +347,20 @@ export default function Checkout() {
                       onChange={handlePaymentChange}
                       className="w-full border rounded px-3 py-2"
                     >
-                      <option value="card">Credit/Debit Card</option>
+                      <option value="razorpay">Razorpay (Credit/Debit Card, UPI, Net Banking)</option>
                       <option value="cod">Cash on Delivery</option>
                     </select>
                   </div>
                   
-                  {payment.paymentMethod === 'card' && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Card Number *</label>
-                        <input
-                          type="text"
-                          name="cardNumber"
-                          value={payment.cardNumber}
-                          onChange={handlePaymentChange}
-                          placeholder="1234 5678 9012 3456"
-                          maxLength="19"
-                          required
-                          className="w-full border rounded px-3 py-2"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Cardholder Name *</label>
-                        <input
-                          type="text"
-                          name="cardName"
-                          value={payment.cardName}
-                          onChange={handlePaymentChange}
-                          required
-                          className="w-full border rounded px-3 py-2"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date *</label>
-                          <input
-                            type="text"
-                            name="expiryDate"
-                            value={payment.expiryDate}
-                            onChange={handlePaymentChange}
-                            placeholder="MM/YY"
-                            maxLength="5"
-                            required
-                            className="w-full border rounded px-3 py-2"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">CVV *</label>
-                          <input
-                            type="text"
-                            name="cvv"
-                            value={payment.cvv}
-                            onChange={handlePaymentChange}
-                            placeholder="123"
-                            maxLength="3"
-                            required
-                            className="w-full border rounded px-3 py-2"
-                          />
-                        </div>
-                      </div>
-                    </>
+                  {payment.paymentMethod === 'razorpay' && (
+                    <div className="bg-blue-50 border border-blue-200 rounded p-4">
+                      <p className="text-sm text-blue-800 mb-2">
+                        <strong>Secure Payment via Razorpay</strong>
+                      </p>
+                      <p className="text-xs text-blue-700">
+                        You will be redirected to Razorpay's secure payment gateway. We support Credit/Debit Cards, UPI, Net Banking, and Wallets.
+                      </p>
+                    </div>
                   )}
 
                   {payment.paymentMethod === 'cod' && (
@@ -448,6 +482,14 @@ export default function Checkout() {
           )}
         </div>
       </div>
+
+      {/* Success/Error Alert */}
+      <SuccessAlert
+        message={alertMessage}
+        isOpen={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={alertType}
+      />
     </div>
   );
 }

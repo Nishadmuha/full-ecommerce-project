@@ -34,13 +34,17 @@ exports.createOrder = async (req, res) => {
       price: item.productId.price || 0
     }));
 
-    // Create order
+    // Create order (for COD - Cash on Delivery)
     const order = await Order.create({
       userId: req.user._id,
       items: orderItems,
       totalAmount,
       status: 'pending',
-      address
+      address,
+      payment: {
+        method: 'cod',
+        status: 'completed' // COD is considered completed as payment will be collected on delivery
+      }
     });
 
     // Clear cart after order creation

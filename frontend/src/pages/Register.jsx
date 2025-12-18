@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { AuthContext } from '../contexts/AuthContext.jsx';
 import { googleAuth } from '../api/authApi';
+import SuccessAlert from '../components/SuccessAlert';
 
 export default function Register() {
   const { register } = useContext(AuthContext);
@@ -11,6 +12,9 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const googleButtonRef = useRef(null);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState('success');
+  const [showAlert, setShowAlert] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,9 +33,17 @@ export default function Register() {
     setLoading(true);
     try {
       await register({ name: form.name, email: form.email, password: form.password });
-      navigate('/');
+      setAlertMessage('Registration successful! Welcome to 6XO BAGS.');
+      setAlertType('success');
+      setShowAlert(true);
+      setTimeout(() => {
+        navigate('/');
+      }, 1500);
     } catch (err) {
       setError(err.message);
+      setAlertMessage(err.message);
+      setAlertType('error');
+      setShowAlert(true);
     } finally {
       setLoading(false);
     }
@@ -51,10 +63,19 @@ export default function Register() {
       
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
-      navigate('/');
-      window.location.reload();
+      setAlertMessage('Google registration successful! Welcome to 6XO BAGS.');
+      setAlertType('success');
+      setShowAlert(true);
+      setTimeout(() => {
+        navigate('/');
+        window.location.reload();
+      }, 1500);
     } catch (err) {
-      setError(err.response?.data?.message || 'Google authentication failed');
+      const errorMsg = err.response?.data?.message || 'Google authentication failed';
+      setError(errorMsg);
+      setAlertMessage(errorMsg);
+      setAlertType('error');
+      setShowAlert(true);
       console.error('Google auth error:', err);
     } finally {
       setLoading(false);
@@ -187,6 +208,14 @@ export default function Register() {
           </Link>
         </p>
       </div>
+
+      {/* Success/Error Alert */}
+      <SuccessAlert
+        message={alertMessage}
+        isOpen={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={alertType}
+      />
     </div>
   );
 }

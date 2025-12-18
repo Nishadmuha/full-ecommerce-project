@@ -1,5 +1,6 @@
 // frontend/src/pages/ProductList.jsx
-import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/api';
 import ProductListCard from '../components/ProductListCard';
@@ -201,25 +202,55 @@ export default function ProductList() {
 
   const hasActiveFilters = selectedCategories.length > 0 || selectedPriceRanges.length > 0;
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
+  };
+
   return (
-    <div className="min-h-screen bg-white">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen bg-white"
+    >
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
         {/* Top Control Bar */}
-        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+        >
           {/* Left: Filters Button */}
-          <button
+          <motion.button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-charcoal transition-colors"
+            variants={itemVariants}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-charcoal transition-colors rounded-lg hover:bg-gray-100"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
             <span>Filters</span>
-          </button>
+          </motion.button>
 
           {/* Center: Search Bar */}
-          <div className="flex-1 max-w-md mx-auto md:mx-0">
+          <motion.div
+            variants={itemVariants}
+            className="flex-1 max-w-md mx-auto md:mx-0"
+          >
             <div className="relative">
               <input
                 type="text"
@@ -237,10 +268,13 @@ export default function ProductList() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
-          </div>
+          </motion.div>
 
           {/* Right: Sort By Dropdown */}
-          <div className="flex items-center gap-2">
+          <motion.div
+            variants={itemVariants}
+            className="flex items-center gap-2"
+          >
             <label htmlFor="sort" className="text-sm text-gray-600">Sort by:</label>
             <select
               id="sort"
@@ -254,8 +288,8 @@ export default function ProductList() {
               <option value="newest">Newest</option>
               <option value="name">Name A-Z</option>
             </select>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {isSyncing && (
           <div className="mb-4 text-center text-xs uppercase tracking-[0.4em] text-gray-400">
@@ -266,11 +300,15 @@ export default function ProductList() {
         {/* Main Content Area */}
         <div className="flex flex-col gap-8 lg:flex-row">
           {/* Left Sidebar - Filter Panel */}
-          <aside
-            className={`${
-              showFilters ? 'block' : 'hidden'
-            } w-full lg:w-64 flex-shrink-0`}
-          >
+          <AnimatePresence>
+            {showFilters && (
+              <motion.aside
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="w-full lg:w-64 flex-shrink-0"
+              >
             <div className="rounded-lg border border-gray-200 bg-white p-6">
               {/* Clear All Button */}
               {hasActiveFilters && (
@@ -321,18 +359,35 @@ export default function ProductList() {
                 </div>
               </div>
             </div>
-          </aside>
+          </motion.aside>
+            )}
+          </AnimatePresence>
 
           {/* Right Grid - Product List */}
-          <section className="flex-1">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {products.map(product => (
-                <ProductListCard key={product._id} product={product} />
+          <motion.section
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex-1"
+          >
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
+            >
+              {products.map((product, index) => (
+                <motion.div
+                  key={product._id}
+                  variants={itemVariants}
+                  custom={index}
+                >
+                  <ProductListCard product={product} />
+                </motion.div>
               ))}
-            </div>
-          </section>
+            </motion.div>
+          </motion.section>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

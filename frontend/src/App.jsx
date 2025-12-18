@@ -1,9 +1,11 @@
 // frontend/src/App.jsx
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
+import PageTransition from './components/PageTransition';
 import Home from './pages/HomePage.jsx';
 import ProductList from './pages/ProductList.jsx';
 import ProductDetails from './pages/ProductDetails.jsx';
@@ -31,6 +33,41 @@ import Coupons from './pages/admin/Coupons.jsx';
 import Complaints from './pages/admin/Complaints.jsx';
 import Categories from './pages/admin/Categories.jsx';
 
+function AppContent() {
+  const location = useLocation();
+
+  return (
+    <>
+      <Header />
+      <main className="min-h-[70vh]">
+        <AnimatePresence mode="wait">
+          <Routes location={location} key={location.pathname}>
+            <Route path="/" element={<PageTransition><Home /></PageTransition>} />
+            <Route path="/products" element={<PageTransition><ProductList /></PageTransition>} />
+            <Route path="/products/:productId" element={<PageTransition><ProductDetails /></PageTransition>} />
+            <Route path="/cart" element={<PageTransition><CartPage /></PageTransition>} />
+            <Route path="/wishlist" element={<PageTransition><WishlistPage /></PageTransition>} />
+            <Route path="/checkout" element={<PageTransition><Checkout /></PageTransition>} />
+            <Route path="/orders" element={<PageTransition><Orders /></PageTransition>} />
+            <Route path="/orders/:orderId" element={<PageTransition><OrderDetails /></PageTransition>} />
+            <Route path="/account" element={<PageTransition><Account /></PageTransition>} />
+            <Route path="/shipping-address" element={<PageTransition><ShippingAddress /></PageTransition>} />
+            <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
+            <Route path="/register" element={<PageTransition><Register /></PageTransition>} />
+            <Route path="/about" element={<PageTransition><About /></PageTransition>} />
+            <Route path="/contact" element={<PageTransition><Contact /></PageTransition>} />
+            <Route path="/faq" element={<PageTransition><FAQ /></PageTransition>} />
+            <Route path="/privacy" element={<PageTransition><Privacy /></PageTransition>} />
+            <Route path="/terms" element={<PageTransition><Terms /></PageTransition>} />
+            <Route path="/refund-policy" element={<PageTransition><RefundPolicy /></PageTransition>} />
+          </Routes>
+        </AnimatePresence>
+      </main>
+      <Footer />
+    </>
+  );
+}
+
 export default function App() {
   return (
     <>
@@ -54,37 +91,7 @@ export default function App() {
         </Route>
 
         {/* Public Routes - With Header/Footer */}
-        <Route
-          path="/*"
-          element={
-            <>
-              <Header />
-              <main className="min-h-[70vh]">
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/products" element={<ProductList />} />
-                  <Route path="/products/:productId" element={<ProductDetails />} />
-                  <Route path="/cart" element={<CartPage />} />
-                  <Route path="/wishlist" element={<WishlistPage />} />
-                  <Route path="/checkout" element={<Checkout />} />
-                  <Route path="/orders" element={<Orders />} />
-                  <Route path="/orders/:orderId" element={<OrderDetails />} />
-                  <Route path="/account" element={<Account />} />
-                  <Route path="/shipping-address" element={<ShippingAddress />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/about" element={<About />} />
-                  <Route path="/contact" element={<Contact />} />
-                  <Route path="/faq" element={<FAQ />} />
-                  <Route path="/privacy" element={<Privacy />} />
-                  <Route path="/terms" element={<Terms />} />
-                  <Route path="/refund-policy" element={<RefundPolicy />} />
-                </Routes>
-              </main>
-              <Footer />
-            </>
-          }
-        />
+        <Route path="/*" element={<AppContent />} />
       </Routes>
     </>
   );

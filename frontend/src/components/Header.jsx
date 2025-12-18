@@ -1,5 +1,5 @@
-// frontend/src/components/Header.jsx
-import React, { useContext, useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useContext, useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext.jsx';
 
@@ -17,20 +17,20 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setIsScrolled(window.scrollY > 0);
+    const onScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Close mobile menu when clicking outside or on a link
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (isMobileMenuOpen && !event.target.closest('header')) {
-        setIsMobileMenuOpen(false);
-      }
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
     };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
   }, [isMobileMenuOpen]);
 
   const handleNavClick = (href) => {
@@ -48,180 +48,243 @@ export default function Header() {
     }
   };
 
+  const iconVariants = {
+    rest: { scale: 1, rotate: 0 },
+    hover: { scale: 1.1, rotate: [0, -5, 5, -5, 0], transition: { duration: 0.4 } },
+    tap: { scale: 0.95 },
+  };
+
+  const mobileMenuVariants = {
+    closed: {
+      opacity: 0,
+      height: 0,
+      transition: {
+        duration: 0.3,
+        ease: 'easeInOut',
+      },
+    },
+    open: {
+      opacity: 1,
+      height: 'auto',
+      transition: {
+        duration: 0.3,
+        ease: 'easeInOut',
+      },
+    },
+  };
+
+  const navItemVariants = {
+    closed: { opacity: 0, x: -20 },
+    open: (i) => ({
+      opacity: 1,
+      x: 0,
+      transition: {
+        delay: i * 0.1,
+        duration: 0.3,
+      },
+    }),
+  };
+
   return (
-    <header
-      className={`sticky top-0 z-30 border-b border-[#f1e7dc]/30 transition-all duration-300 ${
-        isScrolled ? 'bg-white/30 backdrop-blur-sm' : 'bg-white/90 backdrop-blur-md'
+    <motion.header
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.5, ease: 'easeOut' }}
+      className={`sticky top-0 z-50 border-b transition-all duration-300 ${
+        isScrolled 
+          ? 'bg-white/95 backdrop-blur-md shadow-soft border-gray-200' 
+          : 'bg-white/80 backdrop-blur-sm border-transparent'
       }`}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-3 py-3 sm:px-4 sm:py-4 md:px-6 lg:px-0">
-        <Link 
-          to="/" 
-          className="font-display text-lg sm:text-xl md:text-2xl uppercase tracking-[0.2em] sm:tracking-[0.3em] md:tracking-[0.4em] text-charcoal flex-shrink-0"
-          onClick={() => setIsMobileMenuOpen(false)}
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-6 lg:px-8">
+        {/* Logo */}
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
-          <span>6</span>
-          <span className="text-[#ff0000]">XO BAGS</span>
-        </Link>
+          <Link 
+            to="/" 
+            className="font-display text-xl md:text-2xl lg:text-3xl font-bold uppercase tracking-wider text-charcoal flex items-center gap-2"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            <motion.span
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              6
+            </motion.span>
+            <motion.span
+              className="text-primary-600"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              XO
+            </motion.span>
+            <motion.span
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              BAGS
+            </motion.span>
+          </Link>
+        </motion.div>
 
         {/* Desktop Navigation */}
-        <nav className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm font-medium text-gray-600">
-          {navItems.map(item => (
-            <NavLink
+        <nav className="hidden lg:flex items-center gap-8">
+          {navItems.map((item, index) => (
+            <motion.div
               key={item.href}
-              to={item.href}
-              className={({ isActive }) =>
-                `tracking-widest uppercase ${isActive ? 'text-charcoal' : 'hover:text-charcoal'}`
-              }
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 * index + 0.5 }}
             >
-              {item.label}
-            </NavLink>
+              <NavLink
+                to={item.href}
+                className={({ isActive }) =>
+                  `relative text-sm font-semibold uppercase tracking-wider transition-colors ${
+                    isActive ? 'text-charcoal' : 'text-gray-600 hover:text-charcoal'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {item.label}
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeNav"
+                        className="absolute -bottom-1 left-0 right-0 h-0.5 bg-primary-600"
+                        initial={false}
+                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                  </>
+                )}
+              </NavLink>
+            </motion.div>
           ))}
         </nav>
 
-        <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-          {/* Search Icon - Minimalist outline */}
-          <button
-            type="button"
-            onClick={handleIconClick('/products', false)}
-            className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center text-charcoal hover:opacity-70 active:opacity-50 transition-opacity touch-manipulation"
-            aria-label="Search Products"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="stroke-current sm:w-5 sm:h-5"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        {/* Action Icons */}
+        <div className="flex items-center gap-3 md:gap-4">
+          {[
+            { icon: 'search', path: '/products', auth: false, label: 'Search Products' },
+            { icon: 'heart', path: '/wishlist', auth: true, label: 'Wishlist' },
+            { icon: 'user', path: '/account', auth: true, label: 'Account' },
+            { icon: 'cart', path: '/cart', auth: true, label: 'Shopping Cart' },
+          ].map(({ icon, path, auth, label }, index) => (
+            <motion.button
+              key={icon}
+              type="button"
+              onClick={handleIconClick(path, auth)}
+              variants={iconVariants}
+              initial="rest"
+              whileHover="hover"
+              whileTap="tap"
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 * index + 0.6, type: 'spring', stiffness: 200 }}
+              className="relative h-10 w-10 flex items-center justify-center text-charcoal hover:text-primary-600 transition-colors rounded-full hover:bg-gray-100"
+              aria-label={label}
             >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
-          </button>
+              {icon === 'search' && (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              )}
+              {icon === 'heart' && (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              )}
+              {icon === 'user' && (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              )}
+              {icon === 'cart' && (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  {/* Cart Badge - Add if you have cart count */}
+                </>
+              )}
+            </motion.button>
+          ))}
 
-          {/* Heart Icon (Wishlist) - Minimalist outline */}
-          <button
-            type="button"
-            onClick={handleIconClick('/wishlist')}
-            className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center text-charcoal hover:opacity-70 active:opacity-50 transition-opacity touch-manipulation"
-            aria-label="Wishlist"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="stroke-current sm:w-5 sm:h-5"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path
-                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-              />
-            </svg>
-          </button>
-
-          {/* User/Profile Icon - Minimalist outline */}
-          <button
-            type="button"
-            onClick={handleIconClick('/account')}
-            className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center text-charcoal hover:opacity-70 active:opacity-50 transition-opacity touch-manipulation"
-            aria-label="Account"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="stroke-current sm:w-5 sm:h-5"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-          </button>
-
-          {/* Cart Icon - Minimalist outline */}
-          <button
-            type="button"
-            onClick={handleIconClick('/cart')}
-            className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center text-charcoal hover:opacity-70 active:opacity-50 transition-opacity touch-manipulation"
-            aria-label="Shopping Cart"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="stroke-current sm:w-5 sm:h-5"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <path d="M16 10a4 4 0 0 1-8 0" />
-            </svg>
-          </button>
-
-          {/* Mobile Menu Button (Hamburger) - After Cart Icon */}
-          <button
+          {/* Mobile Menu Button */}
+          <motion.button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               setIsMobileMenuOpen(!isMobileMenuOpen);
             }}
-            className="lg:hidden h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center text-charcoal hover:opacity-70 active:opacity-50 transition-opacity touch-manipulation"
+            whileTap={{ scale: 0.95 }}
+            className="lg:hidden h-10 w-10 flex items-center justify-center text-charcoal rounded-full hover:bg-gray-100"
             aria-label="Toggle Menu"
             aria-expanded={isMobileMenuOpen}
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="stroke-current"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+            <motion.div
+              animate={isMobileMenuOpen ? 'open' : 'closed'}
+              className="relative w-6 h-6"
             >
-              {isMobileMenuOpen ? (
-                <path d="M18 6L6 18M6 6l12 12" />
-              ) : (
-                <path d="M3 12h18M3 6h18M3 18h18" />
-              )}
-            </svg>
-          </button>
+              <motion.span
+                className="absolute top-0 left-0 w-full h-0.5 bg-current"
+                variants={{
+                  closed: { rotate: 0, y: 0 },
+                  open: { rotate: 45, y: 8 },
+                }}
+              />
+              <motion.span
+                className="absolute top-2 left-0 w-full h-0.5 bg-current"
+                variants={{
+                  closed: { opacity: 1 },
+                  open: { opacity: 0 },
+                }}
+              />
+              <motion.span
+                className="absolute top-4 left-0 w-full h-0.5 bg-current"
+                variants={{
+                  closed: { rotate: 0, y: 0 },
+                  open: { rotate: -45, y: -8 },
+                }}
+              />
+            </motion.div>
+          </motion.button>
         </div>
       </div>
 
       {/* Mobile Navigation Menu */}
-      {isMobileMenuOpen && (
-        <div className="lg:hidden border-t border-gray-200 bg-white animate-in slide-in-from-top duration-200">
-          <nav className="mx-auto max-w-6xl px-4 py-4 space-y-2">
-            {navItems.map(item => (
-              <button
-                key={item.href}
-                onClick={() => handleNavClick(item.href)}
-                className="block w-full text-left text-sm font-medium text-gray-600 tracking-widest uppercase hover:text-charcoal active:text-charcoal transition-colors py-3 px-2 rounded-md hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
-              >
-                {item.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-      )}
-    </header>
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            variants={mobileMenuVariants}
+            initial="closed"
+            animate="open"
+            exit="closed"
+            className="lg:hidden border-t border-gray-200 bg-white overflow-hidden"
+          >
+            <nav className="mx-auto max-w-7xl px-4 py-6 space-y-1">
+              {navItems.map((item, i) => (
+                <motion.button
+                  key={item.href}
+                  custom={i}
+                  variants={navItemVariants}
+                  initial="closed"
+                  animate="open"
+                  onClick={() => handleNavClick(item.href)}
+                  className="block w-full text-left text-base font-semibold text-gray-700 uppercase tracking-wider hover:text-primary-600 hover:bg-gray-50 transition-colors py-3 px-4 rounded-lg"
+                >
+                  {item.label}
+                </motion.button>
+              ))}
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.header>
   );
 }

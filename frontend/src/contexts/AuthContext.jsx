@@ -1,5 +1,6 @@
 import { createContext, useState, useContext, useEffect } from 'react';
 import LoginModal from '../components/LoginModal.jsx';
+import SuccessAlert from '../components/SuccessAlert';
 import { login as loginApi, register as registerApi, googleAuth } from '../api/authApi';
 import { getProfile } from '../api/userApi';
 
@@ -20,6 +21,9 @@ export const AuthProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState('success');
+  const [showAlert, setShowAlert] = useState(false);
 
   // Check if user is logged in on mount
   useEffect(() => {
@@ -73,6 +77,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const showAlertMessage = (message, type = 'error') => {
+    setAlertMessage(message);
+    setAlertType(type);
+    setShowAlert(true);
+  };
+
   const oauthLogin = async (provider) => {
     if (provider === 'Google') {
       // Initialize Google Sign-In
@@ -84,16 +94,16 @@ export const AuthProvider = ({ children }) => {
               await handleGoogleSignIn(response.credential);
               if (showLogin) closeLoginModal();
             } catch (err) {
-              alert(err.message);
+              showAlertMessage(err.message, 'error');
             }
           },
         });
         window.google.accounts.id.prompt();
       } else {
-        alert('Google Sign-In is not available. Please check your configuration.');
+        showAlertMessage('Google Sign-In is not available. Please check your configuration.', 'error');
       }
     } else {
-      alert(`${provider} login is not implemented yet. Please use email/password login.`);
+      showAlertMessage(`${provider} login is not implemented yet. Please use email/password login.`, 'error');
     }
   };
 
@@ -133,8 +143,9 @@ export const AuthProvider = ({ children }) => {
     try {
       await login({ email: data.email, password: data.password });
       closeLoginModal();
+      showAlertMessage('Login successful! Welcome back.', 'success');
     } catch (err) {
-      alert(err.message);
+      showAlertMessage(err.message, 'error');
     }
   };
 
@@ -159,6 +170,12 @@ export const AuthProvider = ({ children }) => {
           closeLoginModal();
           window.location.assign('/register');
         }}
+      />
+      <SuccessAlert
+        message={alertMessage}
+        isOpen={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={alertType}
       />
     </AuthContext.Provider>
   );
