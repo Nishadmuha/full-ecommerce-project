@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../../api/api';
 import { createProduct, updateProduct, deleteProduct, getProductsByCategory } from '../../api/adminApi';
 import { uploadImage, uploadImages } from '../../api/uploadApi';
+import { getImageUrl } from '../../utils/imageUrl';
 
 export default function Products() {
   const [products, setProducts] = useState([]);
@@ -90,8 +91,7 @@ export default function Products() {
     try {
       setUploading(prev => ({ ...prev, mainImage: true }));
       const response = await uploadImage(file);
-      const baseURL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-      const imageUrl = `${baseURL}${response.data.url}`;
+      const imageUrl = getImageUrl(response.data.url);
       setFormData(prev => ({ ...prev, image: imageUrl }));
       alert('Image uploaded successfully!');
     } catch (error) {
@@ -118,8 +118,7 @@ export default function Products() {
         additionalImages: [...prev.additionalImages, index]
       }));
       const response = await uploadImage(file);
-      const baseURL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-      const imageUrl = `${baseURL}${response.data.url}`;
+      const imageUrl = getImageUrl(response.data.url);
       const newImages = [...(formData.images || [])];
       newImages[index] = imageUrl;
       setFormData(prev => ({ ...prev, images: newImages }));
@@ -152,8 +151,7 @@ export default function Products() {
         colorImages: { ...prev.colorImages, [key]: true }
       }));
       const response = await uploadImage(file);
-      const baseURL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-      const imageUrl = `${baseURL}${response.data.url}`;
+      const imageUrl = getImageUrl(response.data.url);
       
       const newColors = [...formData.colors];
       if (imageIndex !== null) {

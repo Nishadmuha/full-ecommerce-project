@@ -13,7 +13,10 @@ const app = express();
 // Middlewares
 app.use(express.json());
 app.use(cors({ 
-  origin: "http://localhost:5173", 
+  origin: [
+    "http://localhost:5173",
+    "https://full-ecommerce-project-kappa.vercel.app"
+  ],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization", "x-guest-id"]
 }));

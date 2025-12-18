@@ -11,7 +11,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "https://full-ecommerce-project-kappa.vercel.app"
+      "https://full-ecommerce-project-kappa.vercel.app",
+      "https://full-ecommerce-project-u69s.onrender.com"
     ],
     credentials: true,
     methods: "GET,POST,PUT,PATCH,DELETE",

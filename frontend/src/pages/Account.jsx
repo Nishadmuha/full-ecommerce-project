@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getProfile, updateProfile, deleteAccount } from '../api/userApi';
 import { uploadImage } from '../api/uploadApi';
 import SuccessAlert from '../components/SuccessAlert';
+import { getImageUrl } from '../utils/imageUrl';
 
 const sections = ['Profile', 'Order History', 'Shipping Addresses', 'Settings', 'Logout'];
 
@@ -73,8 +74,7 @@ export default function Account() {
     try {
       setUploadingImage(true);
       const response = await uploadImage(file);
-      const baseURL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-      const imageUrl = `${baseURL}${response.data.url}`;
+      const imageUrl = getImageUrl(response.data.url);
       setFormData(prev => ({ ...prev, profileImage: imageUrl }));
       setAlertMessage('Profile image uploaded successfully!');
       setAlertType('success');
