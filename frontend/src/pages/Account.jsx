@@ -141,12 +141,18 @@ export default function Account() {
     try {
       setDeleting(true);
       await deleteAccount();
-      alert('Your account has been permanently deleted.');
-      logout();
-      navigate('/');
+      setAlertMessage('Your account has been permanently deleted.');
+      setAlertType('success');
+      setShowAlert(true);
+      setTimeout(() => {
+        logout();
+        navigate('/');
+      }, 2000);
     } catch (error) {
       console.error('Error deleting account:', error);
-      alert(error.response?.data?.message || 'Failed to delete account. Please try again.');
+      setAlertMessage(error.response?.data?.message || 'Failed to delete account. Please try again.');
+      setAlertType('error');
+      setShowAlert(true);
     } finally {
       setDeleting(false);
       setShowDeleteConfirm(false);

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getProfile, updateProfile } from '../api/userApi';
+import SuccessAlert from '../components/SuccessAlert';
 
 export default function ShippingAddress() {
   const { user } = useAuth();
@@ -10,6 +11,7 @@ export default function ShippingAddress() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [alert, setAlert] = useState({ isOpen: false, message: '', type: 'success' });
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -73,10 +75,10 @@ export default function ShippingAddress() {
       });
       
       setEditing(false);
-      alert('Shipping address updated successfully!');
+      setAlert({ isOpen: true, message: 'Shipping address updated successfully!', type: 'success' });
     } catch (error) {
       console.error('Error updating address:', error);
-      alert(error.response?.data?.message || 'Failed to update address. Please try again.');
+      setAlert({ isOpen: true, message: error.response?.data?.message || 'Failed to update address. Please try again.', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -250,6 +252,14 @@ export default function ShippingAddress() {
           </form>
         </div>
       </div>
+
+      {/* Custom Alert Notification */}
+      <SuccessAlert
+        isOpen={alert.isOpen}
+        onClose={() => setAlert({ ...alert, isOpen: false })}
+        message={alert.message}
+        type={alert.type}
+      />
     </div>
   );
 }

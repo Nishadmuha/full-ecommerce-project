@@ -1,5 +1,6 @@
 // frontend/src/pages/Contact.jsx
 import React, { useState } from 'react';
+import SuccessAlert from '../components/SuccessAlert';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -8,6 +9,7 @@ export default function Contact() {
     subject: '',
     message: '',
   });
+  const [alert, setAlert] = useState({ isOpen: false, message: '', type: 'success' });
 
   const handleChange = e => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -16,7 +18,7 @@ export default function Contact() {
   const handleSubmit = e => {
     e.preventDefault();
     console.log('Contact form submitted:', formData);
-    alert('Thank you for your message! We will get back to you soon.');
+    setAlert({ isOpen: true, message: 'Thank you for your message! We will get back to you soon.', type: 'success' });
     setFormData({ name: '', email: '', subject: '', message: '' });
   };
 
@@ -154,6 +156,14 @@ export default function Contact() {
           </div>
         </div>
       </div>
+
+      {/* Custom Alert Notification */}
+      <SuccessAlert
+        isOpen={alert.isOpen}
+        onClose={() => setAlert({ ...alert, isOpen: false })}
+        message={alert.message}
+        type={alert.type}
+      />
     </div>
   );
 }

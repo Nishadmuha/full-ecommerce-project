@@ -78,7 +78,9 @@ export default function Checkout() {
     e.preventDefault();
     // Validate address
     if (!address.fullName || !address.phone || !address.street || !address.city || !address.state || !address.zipCode) {
-      alert('Please fill in all required fields');
+      setAlertMessage('Please fill in all required fields');
+      setAlertType('error');
+      setShowAlert(true);
       return;
     }
     setStep(2); // Move to payment step

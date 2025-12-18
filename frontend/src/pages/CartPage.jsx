@@ -3,6 +3,8 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getCart, updateQuantity, removeFromCart } from '../api/cartApi';
+import SuccessAlert from '../components/SuccessAlert';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const formatPrice = value => `₹${Number(value).toLocaleString('en-IN')}`;
 
@@ -12,6 +14,8 @@ export default function CartPage() {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [alert, setAlert] = useState({ isOpen: false, message: '', type: 'success' });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, itemId: null });
 
   useEffect(() => {
     if (!user) {
@@ -47,6 +51,11 @@ export default function CartPage() {
     return { subtotal, tax, total };
   }, [cartItems]);
 
+  // Show alert helper
+  const showAlert = (message, type = 'success') => {
+    setAlert({ isOpen: true, message, type });
+  };
+
   // Increment quantity
   const incrementQuantity = async (itemId) => {
     try {
@@ -58,7 +67,7 @@ export default function CartPage() {
       setCartItems(response.data.items || []);
     } catch (err) {
       console.error('Error updating quantity:', err);
-      alert('Failed to update quantity. Please try again.');
+      showAlert('Failed to update quantity. Please try again.', 'error');
     }
   };
 
@@ -73,22 +82,30 @@ export default function CartPage() {
       setCartItems(response.data.items || []);
     } catch (err) {
       console.error('Error updating quantity:', err);
-      alert('Failed to update quantity. Please try again.');
+      showAlert('Failed to update quantity. Please try again.', 'error');
     }
   };
 
-  // Remove item
-  const removeItem = async (itemId) => {
-    if (!confirm('Are you sure you want to remove this item from your cart?')) {
-      return;
-    }
+  // Open confirmation dialog for remove
+  const handleRemoveClick = (itemId) => {
+    setConfirmDialog({ isOpen: true, itemId });
+  };
+
+  // Remove item after confirmation
+  const removeItem = async () => {
+    const itemId = confirmDialog.itemId;
+    if (!itemId) return;
     
     try {
+      const item = cartItems.find(i => i._id === itemId);
+      const productName = item?.productId?.title || 'item';
+      
       const response = await removeFromCart(itemId);
       setCartItems(response.data.items || []);
+      showAlert(`${productName} has been removed from your cart`, 'success');
     } catch (err) {
       console.error('Error removing item:', err);
-      alert('Failed to remove item. Please try again.');
+      showAlert('Failed to remove item. Please try again.', 'error');
     }
   };
 
@@ -193,7 +210,7 @@ export default function CartPage() {
                       {/* Remove: Trash Can Icon */}
                       <button
                         type="button"
-                        onClick={() => removeItem(item._id)}
+                        onClick={() => handleRemoveClick(item._id)}
                         className="text-gray-400 hover:text-red-500 transition-colors ml-2"
                         aria-label="Remove item"
                       >
@@ -257,7 +274,7 @@ export default function CartPage() {
               <button
                 onClick={() => {
                   if (cartItems.length === 0) {
-                    alert('Your cart is empty');
+                    showAlert('Your cart is empty. Add items to continue.', 'error');
                     return;
                   }
                   navigate('/checkout');
@@ -270,6 +287,26 @@ export default function CartPage() {
           </aside>
         </div>
       </div>
+
+      {/* Custom Alert Notification */}
+      <SuccessAlert
+        isOpen={alert.isOpen}
+        onClose={() => setAlert({ ...alert, isOpen: false })}
+        message={alert.message}
+        type={alert.type}
+      />
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, itemId: null })}
+        onConfirm={removeItem}
+        title="Remove Item"
+        message="Are you sure you want to remove this item from your cart?"
+        confirmText="Remove"
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 }

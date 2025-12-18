@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getWishlist, removeFromWishlist } from '../api/wishlistApi';
+import SuccessAlert from '../components/SuccessAlert';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const formatPrice = value => `₹${Number(value).toLocaleString('en-IN')}`;
 
@@ -12,6 +14,8 @@ export default function WishlistPage() {
   const [wishlistItems, setWishlistItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [alert, setAlert] = useState({ isOpen: false, message: '', type: 'success' });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, productId: null });
 
   useEffect(() => {
     if (!user) {
@@ -35,19 +39,32 @@ export default function WishlistPage() {
     }
   };
 
-  // Remove item from wishlist
-  const removeItem = async (productId) => {
-    if (!confirm('Are you sure you want to remove this item from your wishlist?')) {
-      return;
-    }
+  // Show alert helper
+  const showAlert = (message, type = 'success') => {
+    setAlert({ isOpen: true, message, type });
+  };
+
+  // Open confirmation dialog
+  const handleRemoveClick = (productId) => {
+    setConfirmDialog({ isOpen: true, productId });
+  };
+
+  // Remove item from wishlist after confirmation
+  const removeItem = async () => {
+    const productId = confirmDialog.productId;
+    if (!productId) return;
 
     try {
+      const product = wishlistItems.find(p => p._id === productId);
+      const productName = product?.title || 'item';
+      
       await removeFromWishlist(productId);
       // Refresh wishlist after removal
       fetchWishlist();
+      showAlert(`${productName} has been removed from your wishlist`, 'success');
     } catch (err) {
       console.error('Error removing from wishlist:', err);
-      alert('Failed to remove item. Please try again.');
+      showAlert('Failed to remove item. Please try again.', 'error');
     }
   };
 
@@ -121,7 +138,7 @@ export default function WishlistPage() {
                   {/* Remove Button: Below price, left-aligned */}
                   <button
                     type="button"
-                    onClick={() => removeItem(product._id)}
+                    onClick={() => handleRemoveClick(product._id)}
                     className="mt-auto flex items-center gap-2 self-start text-sm text-gray-500 hover:text-red-500 transition-colors"
                   >
                     <svg
@@ -146,6 +163,26 @@ export default function WishlistPage() {
           </div>
         )}
       </div>
+
+      {/* Custom Alert Notification */}
+      <SuccessAlert
+        isOpen={alert.isOpen}
+        onClose={() => setAlert({ ...alert, isOpen: false })}
+        message={alert.message}
+        type={alert.type}
+      />
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, productId: null })}
+        onConfirm={removeItem}
+        title="Remove from Wishlist"
+        message="Are you sure you want to remove this item from your wishlist?"
+        confirmText="Remove"
+        cancelText="Cancel"
+        type="warning"
+      />
     </div>
   );
 }
