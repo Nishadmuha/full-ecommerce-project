@@ -1,0 +1,49 @@
+// Utility to clean up expired guest carts
+const Cart = require('../models/Cart');
+
+/**
+ * Delete guest carts that haven't been updated in the last 5 minutes
+ * This prevents database bloat from abandoned guest carts
+ */
+const cleanupExpiredGuestCarts = async () => {
+  try {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    
+    // Delete guest carts with no activity in the last 5 minutes
+    const result = await Cart.deleteMany({
+      guestId: { $exists: true, $ne: null },
+      lastActivity: { $lt: fiveMinutesAgo }
+    });
+    
+    if (result.deletedCount > 0) {
+      console.log(`🧹 Cleaned up ${result.deletedCount} expired guest cart(s)`);
+    }
+    
+    return result.deletedCount;
+  } catch (error) {
+    console.error('❌ Error cleaning up expired guest carts:', error);
+    return 0;
+  }
+};
+
+/**
+ * Start periodic cleanup job
+ * Runs every 2 minutes to check for expired carts
+ */
+const startCartCleanupJob = () => {
+  // Run cleanup immediately on start
+  cleanupExpiredGuestCarts();
+  
+  // Then run every 2 minutes
+  setInterval(() => {
+    cleanupExpiredGuestCarts();
+  }, 2 * 60 * 1000); // 2 minutes in milliseconds
+  
+  console.log('✅ Guest cart cleanup job started (runs every 2 minutes)');
+};
+
+module.exports = {
+  cleanupExpiredGuestCarts,
+  startCartCleanupJob
+};
+

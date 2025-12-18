@@ -47,4 +47,9 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server started on ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server started on ${PORT}`);
+  // Start guest cart cleanup job after server starts
+  const { startCartCleanupJob } = require('./utils/cartCleanup');
+  startCartCleanupJob();
+});

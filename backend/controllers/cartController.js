@@ -2,6 +2,13 @@ const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const mongoose = require('mongoose');
 
+// Helper function to update lastActivity for guest carts
+const updateGuestCartActivity = (cart) => {
+  if (cart && cart.guestId) {
+    cart.lastActivity = new Date();
+  }
+};
+
 // GET /api/cart
 // Return the user's cart (authenticated or guest) with product details populated
 exports.getCart = async (req, res) => {
@@ -19,7 +26,11 @@ exports.getCart = async (req, res) => {
       // Guest user
       cart = await Cart.findOne({ guestId }).populate('items.productId');
       if (!cart) {
-        cart = await Cart.create({ guestId, items: [] });
+        cart = await Cart.create({ guestId, items: [], lastActivity: new Date() });
+      } else {
+        // Update last activity timestamp for guest carts
+        updateGuestCartActivity(cart);
+        await cart.save();
       }
     } else {
       // No user and no guestId - return empty cart
@@ -101,7 +112,15 @@ exports.addToCart = async (req, res) => {
 
     let cart = await Cart.findOne(cartQuery);
     if (!cart) {
-      cart = await Cart.create({ ...cartQuery, items: [] });
+      const cartData = { ...cartQuery, items: [] };
+      // Set lastActivity for guest carts
+      if (cartQuery.guestId) {
+        cartData.lastActivity = new Date();
+      }
+      cart = await Cart.create(cartData);
+    } else {
+      // Update last activity for guest carts
+      updateGuestCartActivity(cart);
     }
 
     const itemIndex = cart.items.findIndex(
@@ -132,6 +151,8 @@ exports.addToCart = async (req, res) => {
       cart.items.push({ productId, quantity });
     }
 
+    // Update last activity for guest carts
+    updateGuestCartActivity(cart);
     await cart.save();
 
     // Re-populate before sending back so frontend gets full product info
@@ -231,6 +252,8 @@ exports.updateQuantity = async (req, res) => {
     }
 
     cart.items[itemIndex].quantity = quantity;
+    // Update last activity for guest carts
+    updateGuestCartActivity(cart);
     await cart.save();
 
     // Re-populate before sending back
@@ -308,6 +331,8 @@ exports.removeFromCart = async (req, res) => {
     }
 
     cart.items.splice(itemIndex, 1);
+    // Update last activity for guest carts
+    updateGuestCartActivity(cart);
     await cart.save();
 
     // Re-populate before sending back
@@ -351,6 +376,8 @@ exports.clearCart = async (req, res) => {
     }
 
     cart.items = [];
+    // Update last activity for guest carts
+    updateGuestCartActivity(cart);
     await cart.save();
 
     res.json({ message: 'Cart cleared successfully', cart });
