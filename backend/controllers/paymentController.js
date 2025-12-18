@@ -27,7 +27,9 @@ const getRazorpayInstance = () => {
 // Create Razorpay order
 exports.createRazorpayOrder = async (req, res) => {
   try {
-    const { address, guestId, guestEmail, guestName } = req.body;
+    const { address, guestEmail, guestName } = req.body;
+    // Get guestId from body or headers (like cart controller)
+    const guestId = req.body.guestId || req.headers['x-guest-id'];
 
     // Validate address
     if (!address) {
@@ -87,6 +89,13 @@ exports.createRazorpayOrder = async (req, res) => {
 
     // Convert to paise (Razorpay uses smallest currency unit)
     const amountInPaise = Math.round(totalAmount * 100);
+    
+    // Validate amount (Razorpay requires minimum 1 paise)
+    if (amountInPaise < 1) {
+      return res.status(400).json({ 
+        message: 'Order amount must be at least ₹0.01' 
+      });
+    }
 
     // Prepare order items
     const orderItems = cart.items.map(item => ({
@@ -127,40 +136,113 @@ exports.createRazorpayOrder = async (req, res) => {
     const order = await Order.create(orderData);
 
     // Create Razorpay order
-    const razorpayInstance = getRazorpayInstance();
-    const razorpayNotes = {
-      orderId: order._id.toString()
-    };
-    
-    // Add user ID if authenticated, otherwise add guest info
-    if (req.user) {
-      razorpayNotes.userId = req.user._id.toString();
-    } else {
-      razorpayNotes.guestEmail = guestEmail;
-      razorpayNotes.guestName = guestName;
+    try {
+      const razorpayInstance = getRazorpayInstance();
+      const razorpayNotes = {
+        orderId: order._id.toString()
+      };
+      
+      // Add user ID if authenticated, otherwise add guest info
+      if (req.user) {
+        razorpayNotes.userId = req.user._id.toString();
+      } else {
+        razorpayNotes.guestEmail = guestEmail;
+        razorpayNotes.guestName = guestName;
+      }
+      
+      const razorpayOrder = await razorpayInstance.orders.create({
+        amount: amountInPaise,
+        currency: 'INR',
+        receipt: `order_${order._id}`,
+        notes: razorpayNotes
+      });
+
+      // Update order with Razorpay order ID
+      order.payment.razorpayOrderId = razorpayOrder.id;
+      await order.save();
+
+      res.json({
+        orderId: order._id,
+        razorpayOrderId: razorpayOrder.id,
+        amount: amountInPaise,
+        currency: 'INR',
+        key: process.env.RAZORPAY_KEY_ID
+      });
+    } catch (razorpayError) {
+      console.error('Razorpay API error:', razorpayError);
+      console.error('Razorpay error details:', JSON.stringify(razorpayError, null, 2));
+      
+      // If Razorpay fails, we should rollback the stock deduction
+      try {
+        const Product = require('../models/Product');
+        for (const item of cart.items) {
+          const product = await Product.findById(item.productId._id);
+          if (product) {
+            product.stock += item.quantity;
+            await product.save();
+          }
+        }
+        // Delete the order
+        await Order.findByIdAndDelete(order._id);
+      } catch (rollbackError) {
+        console.error('Error during rollback:', rollbackError);
+      }
+      
+      // Check for specific Razorpay errors
+      const errorMessage = razorpayError.message || razorpayError.error?.description || 'Unknown Razorpay error';
+      
+      if (errorMessage.includes('key_id') || errorMessage.includes('key_id or oauthToken is mandatory')) {
+        return res.status(500).json({ 
+          message: 'Razorpay API keys are not configured. Please contact support.',
+          error: 'RAZORPAY_CONFIG_ERROR',
+          details: errorMessage
+        });
+      }
+      
+      if (errorMessage.includes('amount')) {
+        return res.status(400).json({ 
+          message: 'Invalid order amount. Please check your cart items.',
+          error: 'INVALID_AMOUNT',
+          details: errorMessage
+        });
+      }
+      
+      return res.status(500).json({ 
+        message: 'Error creating Razorpay order', 
+        error: errorMessage,
+        details: razorpayError.error || razorpayError
+      });
     }
-    
-    const razorpayOrder = await razorpayInstance.orders.create({
-      amount: amountInPaise,
-      currency: 'INR',
-      receipt: `order_${order._id}`,
-      notes: razorpayNotes
-    });
 
-    // Update order with Razorpay order ID
-    order.payment.razorpayOrderId = razorpayOrder.id;
-    await order.save();
-
-    res.json({
-      orderId: order._id,
-      razorpayOrderId: razorpayOrder.id,
-      amount: amountInPaise,
-      currency: 'INR',
-      key: process.env.RAZORPAY_KEY_ID
-    });
   } catch (error) {
     console.error('Create Razorpay order error:', error);
-    res.status(500).json({ message: 'Error creating payment order', error: error.message });
+    
+    // If we created an order but failed, try to rollback
+    if (error.orderId) {
+      try {
+        const Product = require('../models/Product');
+        const failedOrder = await Order.findById(error.orderId);
+        if (failedOrder) {
+          // Restore stock
+          for (const item of failedOrder.items) {
+            const product = await Product.findById(item.productId);
+            if (product) {
+              product.stock += item.quantity;
+              await product.save();
+            }
+          }
+          // Delete the order
+          await Order.findByIdAndDelete(error.orderId);
+        }
+      } catch (rollbackError) {
+        console.error('Error during rollback:', rollbackError);
+      }
+    }
+    
+    res.status(500).json({ 
+      message: 'Error creating payment order', 
+      error: error.message 
+    });
   }
 };
 
