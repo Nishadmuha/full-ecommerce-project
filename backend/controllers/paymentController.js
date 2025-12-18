@@ -3,11 +3,26 @@ const crypto = require('crypto');
 const Order = require('../models/Order');
 const Cart = require('../models/Cart');
 
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Lazy initialization of Razorpay (only when needed and keys are available)
+let razorpay = null;
+
+const getRazorpayInstance = () => {
+  if (!razorpay) {
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    
+    if (!keyId || !keySecret) {
+      throw new Error('Razorpay API keys are not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+    }
+    
+    razorpay = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
+    });
+  }
+  
+  return razorpay;
+};
 
 // Create Razorpay order
 exports.createRazorpayOrder = async (req, res) => {
@@ -112,7 +127,8 @@ exports.createRazorpayOrder = async (req, res) => {
     const order = await Order.create(orderData);
 
     // Create Razorpay order
-    const razorpayOrder = await razorpay.orders.create({
+    const razorpayInstance = getRazorpayInstance();
+    const razorpayOrder = await razorpayInstance.orders.create({
       amount: amountInPaise,
       currency: 'INR',
       receipt: `order_${order._id}`,
@@ -172,7 +188,8 @@ exports.verifyPayment = async (req, res) => {
 
     // Verify payment with Razorpay
     try {
-      const payment = await razorpay.payments.fetch(razorpayPaymentId);
+      const razorpayInstance = getRazorpayInstance();
+      const payment = await razorpayInstance.payments.fetch(razorpayPaymentId);
       
       if (payment.status === 'captured' || payment.status === 'authorized') {
         // Update order with payment details
