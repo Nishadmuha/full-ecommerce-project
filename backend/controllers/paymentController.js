@@ -128,14 +128,23 @@ exports.createRazorpayOrder = async (req, res) => {
 
     // Create Razorpay order
     const razorpayInstance = getRazorpayInstance();
+    const razorpayNotes = {
+      orderId: order._id.toString()
+    };
+    
+    // Add user ID if authenticated, otherwise add guest info
+    if (req.user) {
+      razorpayNotes.userId = req.user._id.toString();
+    } else {
+      razorpayNotes.guestEmail = guestEmail;
+      razorpayNotes.guestName = guestName;
+    }
+    
     const razorpayOrder = await razorpayInstance.orders.create({
       amount: amountInPaise,
       currency: 'INR',
       receipt: `order_${order._id}`,
-      notes: {
-        orderId: order._id.toString(),
-        userId: req.user._id.toString()
-      }
+      notes: razorpayNotes
     });
 
     // Update order with Razorpay order ID
